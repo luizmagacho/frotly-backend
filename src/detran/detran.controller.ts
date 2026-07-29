@@ -2,10 +2,14 @@ import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DetranService } from './detran.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PlanGuard } from '../tenants/guards/plan.guard';
+import { RequiresPlan } from '../tenants/decorators/requires-plan.decorator';
+import { PlanType } from '../tenants/schemas/tenant.schema';
 
 @ApiTags('Detran PR')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PlanGuard)
+@RequiresPlan(PlanType.ENTERPRISE)
 @Controller('detran')
 export class DetranController {
   constructor(private readonly detranService: DetranService) {}

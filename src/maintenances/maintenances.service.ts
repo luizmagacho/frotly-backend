@@ -5,6 +5,8 @@ import { Maintenance, MaintenanceDocument, MaintenanceStatus } from './schemas/m
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { HistoryService } from '../history/history.service';
 import { EventType } from '../history/schemas/history-event.schema';
+import { FinancialEntriesService } from '../financial-entries/financial-entries.service';
+import { FinancialEntryType, FinancialEntryCategory, FinancialEntryStatus } from '../financial-entries/schemas/financial-entry.schema';
 
 import { IsString, IsNumber, IsOptional, IsDate, IsMongoId, Min } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -67,6 +69,7 @@ export class MaintenancesService {
     private maintenanceModel: Model<MaintenanceDocument>,
     private vehiclesService: VehiclesService,
     private historyService: HistoryService,
+    private financialEntriesService: FinancialEntriesService,
   ) {}
 
   async create(dto: CreateMaintenanceDto): Promise<Maintenance> {
@@ -76,6 +79,19 @@ export class MaintenancesService {
     });
 
     const saved = await maintenance.save();
+
+    if (dto.cost && dto.cost > 0) {
+      await this.financialEntriesService.create({
+        vehicleId: dto.vehicleId,
+        type: FinancialEntryType.EXPENSE,
+        category: FinancialEntryCategory.MANUTENCAO,
+        amount: dto.cost,
+        date: dto.scheduledDate,
+        description: `Manutenção: ${dto.description}`,
+        status: FinancialEntryStatus.PENDING,
+        sourceId: saved._id.toString(),
+      } as any);
+    }
 
     await this.historyService.record({
       vehicleId: dto.vehicleId,
@@ -135,6 +151,16 @@ export class MaintenancesService {
     );
 
     if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+
+    await this.financialEntriesService.upsertBySourceId(id, {
+      vehicleId: maintenance.vehicleId,
+      type: FinancialEntryType.EXPENSE,
+      category: FinancialEntryCategory.MANUTENCAO,
+      amount: cost,
+      date: new Date(),
+      description: `Manutenção: ${maintenance.description}`,
+      status: FinancialEntryStatus.PAID,
+    });
 
     await this.historyService.record({
       vehicleId: maintenance.vehicleId.toString(),

@@ -5,6 +5,7 @@ import { MaintenancesService } from './maintenances.service';
 import { Maintenance, MaintenanceSchema } from './schemas/maintenance.schema';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 import { HistoryModule } from '../history/history.module';
+import { FinancialEntriesModule } from '../financial-entries/financial-entries.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { HistoryModule } from '../history/history.module';
     ]),
     VehiclesModule,
     HistoryModule,
+    FinancialEntriesModule,
   ],
   controllers: [MaintenancesController],
   providers: [MaintenancesService],

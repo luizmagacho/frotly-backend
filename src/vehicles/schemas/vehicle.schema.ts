@@ -42,7 +42,10 @@ export enum TransmissionType {
   toObject: { virtuals: true }
 })
 export class Vehicle {
-  @Prop({ required: true, unique: true, uppercase: true, trim: true })
+  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  tenantId: Types.ObjectId;
+
+  @Prop({ required: true, uppercase: true, trim: true })
   licensePlate: string;
 
   @Prop({ required: true, trim: true })
@@ -60,10 +63,10 @@ export class Vehicle {
   @Prop({ trim: true })
   color: string;
 
-  @Prop({ required: true, unique: true, trim: true })
+  @Prop({ required: true, trim: true })
   renavam: string;
 
-  @Prop({ required: true, unique: true, trim: true })
+  @Prop({ required: true, trim: true })
   chassis: string;
 
   @Prop({ enum: FuelType, default: FuelType.FLEX })
@@ -136,7 +139,8 @@ VehicleSchema.virtual('purchasePrice')
     this.purchaseValue = val;
   });
 
-VehicleSchema.index({ licensePlate: 1 });
-VehicleSchema.index({ renavam: 1 });
+VehicleSchema.index({ tenantId: 1, licensePlate: 1 }, { unique: true });
+VehicleSchema.index({ tenantId: 1, renavam: 1 }, { unique: true });
+VehicleSchema.index({ tenantId: 1, chassis: 1 }, { unique: true });
 VehicleSchema.index({ status: 1 });
 VehicleSchema.index({ brand: 'text', model: 'text', licensePlate: 'text' });

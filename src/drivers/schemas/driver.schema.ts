@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type DriverDocument = Driver & Document;
 
@@ -20,13 +20,16 @@ export enum LicenseCategory {
 
 @Schema({ timestamps: true, collection: 'drivers' })
 export class Driver {
+  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  tenantId: Types.ObjectId;
+
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, unique: true, trim: true })
+  @Prop({ required: true, trim: true })
   cpf: string;
 
-  @Prop({ required: true, unique: true, trim: true })
+  @Prop({ required: true, trim: true })
   licenseNumber: string;
 
   @Prop({ required: true, enum: LicenseCategory })
@@ -71,7 +74,7 @@ export class Driver {
 
 export const DriverSchema = SchemaFactory.createForClass(Driver);
 
-DriverSchema.index({ cpf: 1 });
-DriverSchema.index({ licenseNumber: 1 });
+DriverSchema.index({ tenantId: 1, cpf: 1 }, { unique: true });
+DriverSchema.index({ tenantId: 1, licenseNumber: 1 }, { unique: true });
 DriverSchema.index({ status: 1 });
 DriverSchema.index({ name: 'text', cpf: 'text', email: 'text' });

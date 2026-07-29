@@ -18,6 +18,9 @@ export enum MaintenanceStatus {
 
 @Schema({ timestamps: true, collection: 'maintenances' })
 export class Maintenance {
+  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  tenantId: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
   vehicleId: Types.ObjectId;
 
@@ -69,6 +72,6 @@ export class Maintenance {
 
 export const MaintenanceSchema = SchemaFactory.createForClass(Maintenance);
 
-MaintenanceSchema.index({ vehicleId: 1 });
-MaintenanceSchema.index({ status: 1 });
-MaintenanceSchema.index({ scheduledDate: 1 });
+MaintenanceSchema.index({ tenantId: 1, vehicleId: 1 });
+MaintenanceSchema.index({ tenantId: 1, status: 1 });
+MaintenanceSchema.index({ tenantId: 1, scheduledDate: 1 });

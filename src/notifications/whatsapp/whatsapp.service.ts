@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as twilio from 'twilio';
+import Twilio from 'twilio';
 
 export interface WhatsAppPayload {
   to: string;
@@ -10,7 +10,7 @@ export interface WhatsAppPayload {
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
-  private client: twilio.Twilio;
+  private client: Twilio.Twilio;
   private readonly fromNumber: string;
 
   constructor(private configService: ConfigService) {
@@ -19,7 +19,7 @@ export class WhatsAppService {
     this.fromNumber = this.configService.get('TWILIO_WHATSAPP_FROM', 'whatsapp:+14155238886');
 
     if (accountSid && authToken) {
-      this.client = twilio(accountSid, authToken);
+      this.client = Twilio(accountSid, authToken);
     } else {
       this.logger.warn('Twilio credentials not configured — WhatsApp notifications disabled.');
     }
@@ -52,14 +52,14 @@ export class WhatsAppService {
   async sendPaymentOverdueAlert(driverName: string, phone: string, plate: string, amount: number): Promise<void> {
     await this.send({
       to: phone,
-      message: `⚠️ *GestorFrota PR* — Olá, ${driverName}!\n\nSeu pagamento de *R$ ${amount.toFixed(2)}* referente ao veículo *${plate}* está atrasado.\n\nRegularize sua situação para evitar suspensão do contrato.\n\nDúvidas? Responda esta mensagem. 🚗`,
+      message: `⚠️ *Frotly* — Olá, ${driverName}!\n\nSeu pagamento de *R$ ${amount.toFixed(2)}* referente ao veículo *${plate}* está atrasado.\n\nRegularize sua situação para evitar suspensão do contrato.\n\nDúvidas? Responda esta mensagem. 🚗`,
     });
   }
 
   async sendLicenseExpirationWarning(driverName: string, phone: string, daysLeft: number): Promise<void> {
     await this.send({
       to: phone,
-      message: `🔔 *GestorFrota PR* — Olá, ${driverName}!\n\nSua CNH vence em *${daysLeft} dias*.\n\nNão esqueça de renová-la para continuar operando normalmente! ✅`,
+      message: `🔔 *Frotly* — Olá, ${driverName}!\n\nSua CNH vence em *${daysLeft} dias*.\n\nNão esqueça de renová-la para continuar operando normalmente! ✅`,
     });
   }
 
@@ -72,28 +72,42 @@ export class WhatsAppService {
 
     await this.send({
       to: phone,
-      message: `📋 *GestorFrota PR* — O *${labels[documentType] ?? documentType}* do veículo *${plate}* vence em *${daysLeft} dias*.\n\nProvidencie a regularização. 🛡️`,
+      message: `📋 *Frotly* — O *${labels[documentType] ?? documentType}* do veículo *${plate}* vence em *${daysLeft} dias*.\n\nProvidencie a regularização. 🛡️`,
     });
   }
 
   async sendFineAlert(phone: string, plate: string, description: string, amount: number): Promise<void> {
     await this.send({
       to: phone,
-      message: `🚨 *GestorFrota PR* — Nova multa detectada no veículo *${plate}*!\n\n*Infração:* ${description}\n*Valor:* R$ ${amount.toFixed(2)}\n\nVerifique no aplicativo para mais detalhes.`,
+      message: `🚨 *Frotly* — Nova multa detectada no veículo *${plate}*!\n\n*Infração:* ${description}\n*Valor:* R$ ${amount.toFixed(2)}\n\nVerifique no aplicativo para mais detalhes.`,
     });
   }
 
   async sendPaymentUpcomingWarning(driverName: string, phone: string, plate: string, amount: number, dueDate: Date): Promise<void> {
     await this.send({
       to: phone,
-      message: `⏳ *GestorFrota PR* — Olá, ${driverName}!\n\nLembrete amigável: sua parcela de *R$ ${amount.toFixed(2)}* do veículo *${plate}* vence em *${new Date(dueDate).toLocaleDateString('pt-BR')}*.\n\nEvite atrasos! 🚗`,
+      message: `⏳ *Frotly* — Olá, ${driverName}!\n\nLembrete amigável: sua parcela de *R$ ${amount.toFixed(2)}* do veículo *${plate}* vence em *${new Date(dueDate).toLocaleDateString('pt-BR')}*.\n\nEvite atrasos! 🚗`,
     });
   }
 
   async sendMileageUpdateReminder(driverName: string, phone: string, plate: string): Promise<void> {
     await this.send({
       to: phone,
-      message: `🚗 *GestorFrota PR* — Olá, ${driverName}!\n\nSeu contrato do veículo *${plate}* fechou mais um ciclo de 30 dias!\n\nPor favor, informe a *quilometragem atual* do painel do carro para atualizarmos o sistema. ✅`,
+      message: `🚗 *Frotly* — Olá, ${driverName}!\n\nSeu contrato do veículo *${plate}* fechou mais um ciclo de 30 dias!\n\nPor favor, informe a *quilometragem atual* do painel do carro para atualizarmos o sistema. ✅`,
+    });
+  }
+
+  async sendRentalReturnReminder(driverName: string, phone: string, plate: string, returnDate: Date): Promise<void> {
+    await this.send({
+      to: phone,
+      message: `📅 *Frotly* — Olá, ${driverName}!\n\nEste é um lembrete de que a devolução do veículo *${plate}* está prevista para *${new Date(returnDate).toLocaleDateString('pt-BR')}*.\n\nCertifique-se de entregar o veículo na data combinada para evitar cobranças adicionais. 🚗\n\nDúvidas? Responda esta mensagem.`,
+    });
+  }
+
+  async sendWelcomeMessage(name: string, phone: string): Promise<void> {
+    await this.send({
+      to: phone,
+      message: `🎉 *Frotly* — Bem-vindo(a), ${name}!\n\nSeu contrato foi criado com sucesso e você já faz parte da nossa frota.\n\nQualquer dúvida sobre seu veículo, pagamentos ou contrato, estamos aqui para ajudar. Boas viagens! 🚗✨`,
     });
   }
 }

@@ -6,6 +6,8 @@ import { Maintenance, MaintenanceSchema } from '../maintenances/schemas/maintena
 import { DriversModule } from '../drivers/drivers.module';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 import { RentalsModule } from '../rentals/rentals.module';
+import { TenantsModule } from '../tenants/tenants.module';
+import { FinancialEntriesModule } from '../financial-entries/financial-entries.module';
 
 @Module({
   imports: [
@@ -15,6 +17,8 @@ import { RentalsModule } from '../rentals/rentals.module';
     DriversModule,
     VehiclesModule,
     RentalsModule,
+    TenantsModule,
+    FinancialEntriesModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

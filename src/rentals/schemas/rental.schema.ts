@@ -64,6 +64,9 @@ export class MileageLog {
 
 @Schema({ timestamps: true, collection: 'rentals' })
 export class Rental {
+  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  tenantId: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
   vehicleId: Types.ObjectId;
 
@@ -106,7 +109,7 @@ export class Rental {
 
 export const RentalSchema = SchemaFactory.createForClass(Rental);
 
-RentalSchema.index({ vehicleId: 1 });
-RentalSchema.index({ driverId: 1 });
-RentalSchema.index({ status: 1 });
+RentalSchema.index({ tenantId: 1, vehicleId: 1 });
+RentalSchema.index({ tenantId: 1, driverId: 1 });
+RentalSchema.index({ tenantId: 1, status: 1 });
 RentalSchema.index({ 'payments.dueDate': 1, 'payments.status': 1 });

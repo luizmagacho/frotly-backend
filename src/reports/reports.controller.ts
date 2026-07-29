@@ -2,10 +2,13 @@ import { Controller, Get, Query, UseGuards, ParseIntPipe, DefaultValuePipe } fro
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { PlanGuard } from '../tenants/guards/plan.guard';
+import { RequiresPlan } from '../tenants/decorators/requires-plan.decorator';
+import { PlanType } from '../tenants/schemas/tenant.schema';
 
 @ApiTags('Relatórios')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PlanGuard)
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
@@ -25,12 +28,14 @@ export class ReportsController {
   }
 
   @Get('financial')
+  @RequiresPlan(PlanType.PRO)
   @ApiOperation({ summary: 'Lucro/Prejuízo por veículo' })
   getFinancialPerVehicle() {
     return this.reportsService.getFinancialPerVehicle();
   }
 
   @Get('mileage')
+  @RequiresPlan(PlanType.PRO)
   @ApiOperation({ summary: 'Quilometragem por veículo' })
   getMileagePerVehicle() {
     return this.reportsService.getMileagePerVehicle();

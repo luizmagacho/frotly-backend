@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Maintenance, MaintenanceDocument, MaintenanceStatus } from '../maintenances/schemas/maintenance.schema';
+import { FinancialEntriesService } from '../financial-entries/financial-entries.service';
+import { FinancialEntryCategory } from '../financial-entries/schemas/financial-entry.schema';
 import { DriversService } from '../drivers/drivers.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { RentalsService } from '../rentals/rentals.service';
@@ -14,6 +16,7 @@ export class ReportsService {
     private driversService: DriversService,
     private vehiclesService: VehiclesService,
     private rentalsService: RentalsService,
+    private financialEntriesService: FinancialEntriesService,
   ) {}
 
   async getDashboardKpis(): Promise<any> {
@@ -75,15 +78,29 @@ export class ReportsService {
     const vehicles = await this.vehiclesService['vehicleModel'].find().select('_id licensePlate brand model').lean();
     
     const results = await Promise.all(vehicles.map(async (v) => {
-      // Receita total de alugueis
-      const rentals = await this.rentalsService['rentalModel'].find({ vehicleId: v._id }).lean();
-      const revenue = rentals.reduce((sum, r) => {
-        return sum + (r.payments?.filter(p => p.status === 'PAID').reduce((pSum, p) => pSum + p.amount, 0) || 0);
-      }, 0);
+      const ledger = await this.financialEntriesService.getVehicleLedger(v._id.toString());
 
-      // Custo total de manutenção
-      const maintenances = await this.maintenanceModel.find({ vehicleId: v._id }).lean();
-      const maintenanceCost = maintenances.reduce((sum, m) => sum + (m.cost || 0), 0);
+      const revenue = ledger.totalIncome;
+      const expense = ledger.totalExpense;
+
+      // Extract specific costs if needed, but for now we can just show total expense as maintenanceCost + others
+      // or we can separate them by category if required by the frontend.
+      // The frontend currently expects: revenue, maintenanceCost, finesCost, profit
+      const maintenanceCost = ledger.entries
+        .filter(e => e.category === FinancialEntryCategory.MANUTENCAO)
+        .reduce((sum, e) => sum + e.amount, 0);
+      
+      const finesCost = ledger.entries
+        .filter(e => e.category === FinancialEntryCategory.MULTA)
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      const insurancesCost = ledger.entries
+        .filter(e => e.category === FinancialEntryCategory.SEGURO)
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      const fuelCost = ledger.entries
+        .filter(e => e.category === FinancialEntryCategory.COMBUSTIVEL)
+        .reduce((sum, e) => sum + e.amount, 0);
 
       return {
         vehicleId: v._id,
@@ -91,8 +108,11 @@ export class ReportsService {
         name: `${v.brand} ${v.model}`,
         revenue,
         maintenanceCost,
-        finesCost: 0, // Mock for now unless tracked in DB
-        profit: revenue - maintenanceCost
+        finesCost,
+        insurancesCost, 
+        fuelCost,
+        expense, 
+        profit: ledger.balance
       };
     }));
 
