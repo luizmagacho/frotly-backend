@@ -39,12 +39,26 @@ export class DriversService {
     if (status) filter.status = status;
 
     if (search) {
+      const cleanSearch = search.replace(/\D/g, '');
       filter.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { cpf: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
-        { licenseNumber: { $regex: search, $options: 'i' } },
       ];
+      
+      // Allow searching with or without formatting
+      if (cleanSearch) {
+        filter.$or.push(
+          { cpf: { $regex: cleanSearch, $options: 'i' } },
+          { licenseNumber: { $regex: cleanSearch, $options: 'i' } },
+          { phone: { $regex: cleanSearch, $options: 'i' } }
+        );
+      } else {
+        filter.$or.push(
+          { cpf: { $regex: search, $options: 'i' } },
+          { licenseNumber: { $regex: search, $options: 'i' } },
+          { phone: { $regex: search, $options: 'i' } }
+        );
+      }
     }
 
     const skip = (page - 1) * limit;
