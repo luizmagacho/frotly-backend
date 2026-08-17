@@ -109,6 +109,18 @@ export class VehiclesService {
     return this.update(id, updateData);
   }
 
+  async updateMileage(id: string, newMileage: number): Promise<Vehicle> {
+    const vehicle = await this.vehicleModel.findByIdAndUpdate(
+      id,
+      { $set: { mileage: newMileage } },
+      { new: true }
+    );
+    if (!vehicle) {
+      throw new NotFoundException(`Veículo com ID ${id} não encontrado.`);
+    }
+    return vehicle;
+  }
+
   async addPhoto(id: string, photoPath: string): Promise<Vehicle> {
     const vehicle = await this.vehicleModel.findByIdAndUpdate(
       id,

@@ -1,4 +1,4 @@
-import { Schema } from 'mongoose';
+import { Schema, Types } from 'mongoose';
 import { getTenantId } from './tenant.context';
 
 export function tenantPlugin(schema: Schema) {
@@ -12,7 +12,12 @@ export function tenantPlugin(schema: Schema) {
   const injectTenantId = function (this: any) {
     const tenantId = getTenantId();
     if (tenantId) {
-      this.where({ tenantId });
+      try {
+        const objectId = new Types.ObjectId(tenantId);
+        this.where({ tenantId: objectId });
+      } catch (e) {
+        this.where({ tenantId });
+      }
     }
   };
 

@@ -40,18 +40,12 @@ export class RentalsService {
     if (end) {
       const diffTime = Math.abs(end.getTime() - currentDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (frequency === PaymentFrequency.WEEKLY) maxPeriods = Math.max(1, Math.ceil(diffDays / 7));
-      else if (frequency === PaymentFrequency.BIWEEKLY) maxPeriods = Math.max(1, Math.ceil(diffDays / 14));
-      else maxPeriods = Math.max(1, Math.ceil(diffDays / 30));
+      if (frequency === PaymentFrequency.WEEKLY) maxPeriods = Math.max(1, Math.round(diffDays / 7));
+      else if (frequency === PaymentFrequency.BIWEEKLY) maxPeriods = Math.max(1, Math.round(diffDays / 14));
+      else maxPeriods = Math.max(1, Math.round(diffDays / 30));
     }
 
     for (let i = 0; i < maxPeriods; i++) {
-      payments.push({
-        dueDate: new Date(currentDate),
-        amount,
-        status: PaymentStatus.PENDING,
-      });
-
       if (frequency === PaymentFrequency.WEEKLY) {
         currentDate.setDate(currentDate.getDate() + 7);
       } else if (frequency === PaymentFrequency.BIWEEKLY) {
@@ -59,6 +53,12 @@ export class RentalsService {
       } else {
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
+
+      payments.push({
+        dueDate: new Date(currentDate),
+        amount,
+        status: PaymentStatus.PENDING,
+      });
     }
 
     return payments;

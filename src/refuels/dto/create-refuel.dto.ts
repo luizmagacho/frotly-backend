@@ -41,4 +41,8 @@ export class CreateRefuelDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }
