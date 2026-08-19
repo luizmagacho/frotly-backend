@@ -34,8 +34,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const rawMessage = exception instanceof Error ? exception.message : 'Unknown error';
-    const message = isDuplicateKeyError ? friendlyDuplicateKeyMessage(rawMessage) : rawMessage;
+    let rawMessage = exception instanceof Error ? exception.message : 'Unknown error';
+
+    if (exception instanceof HttpException) {
+      const resp = exception.getResponse();
+      if (typeof resp === 'object' && resp !== null && 'message' in resp) {
+        rawMessage = (resp as any).message;
+      }
+    }
+
+    const message = isDuplicateKeyError ? friendlyDuplicateKeyMessage(exception instanceof Error ? exception.message : 'Unknown error') : rawMessage;
     const isProd = process.env.NODE_ENV === 'production';
     if (!isProd) {
       const stack = exception instanceof Error ? exception.stack : '';
