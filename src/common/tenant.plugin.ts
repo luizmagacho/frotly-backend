@@ -9,32 +9,36 @@ export function tenantPlugin(schema: Schema) {
     return;
   }
 
+  const getTenantObjectId = (tenantId: string) => {
+    try {
+      return new Types.ObjectId(tenantId);
+    } catch {
+      return tenantId;
+    }
+  };
+
   const injectTenantId = function (this: any) {
     const tenantId = getTenantId();
     if (tenantId) {
-      try {
-        const objectId = new Types.ObjectId(tenantId);
-        this.where({ tenantId: objectId });
-      } catch (e) {
-        this.where({ tenantId });
-      }
+      this.where({ tenantId: getTenantObjectId(tenantId) });
     }
   };
 
   schema.pre('validate', function (this: any) {
     const tenantId = getTenantId();
     if (tenantId && !this.tenantId) {
-      this.tenantId = tenantId;
+      this.tenantId = getTenantObjectId(tenantId);
     }
   });
 
   schema.pre('insertMany', function (next: any, docs: any) {
     const tenantId = getTenantId();
     if (tenantId) {
+      const tenantObjId = getTenantObjectId(tenantId);
       if (Array.isArray(docs)) {
         docs.forEach((doc: any) => {
           if (!doc.tenantId) {
-            doc.tenantId = tenantId;
+            doc.tenantId = tenantObjId;
           }
         });
       }
@@ -53,7 +57,7 @@ export function tenantPlugin(schema: Schema) {
   schema.pre('aggregate', function (this: any) {
     const tenantId = getTenantId();
     if (tenantId) {
-      this.pipeline().unshift({ $match: { tenantId } });
+      this.pipeline().unshift({ $match: { tenantId: getTenantObjectId(tenantId) } });
     }
   });
 }
