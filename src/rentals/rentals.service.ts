@@ -46,13 +46,16 @@ export class RentalsService {
     }
 
     for (let i = 0; i < maxPeriods; i++) {
+      const nextDate = new Date(currentDate);
       if (frequency === PaymentFrequency.WEEKLY) {
-        currentDate.setDate(currentDate.getDate() + 7);
+        nextDate.setDate(nextDate.getDate() + 7);
       } else if (frequency === PaymentFrequency.BIWEEKLY) {
-        currentDate.setDate(currentDate.getDate() + 14);
+        nextDate.setDate(nextDate.getDate() + 14);
       } else {
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        nextDate.setMonth(nextDate.getMonth() + 1);
       }
+      
+      currentDate = new Date(nextDate);
 
       payments.push({
         dueDate: new Date(currentDate),
