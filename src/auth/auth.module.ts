@@ -15,7 +15,7 @@ import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'gestor-frota-pr-secret'),
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: { expiresIn: configService.get('JWT_EXPIRES_IN', '7d') as any },
       }),
       inject: [ConfigService],

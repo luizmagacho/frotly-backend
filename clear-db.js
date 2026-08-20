@@ -1,12 +1,18 @@
 /**
- * clear-db.js
- * Limpa todo o banco de dados de produção do MongoDB Atlas,
- * preservando APENAS o usuário administrador principal para que você possa logar.
+ * clear-db.js — Limpa o banco de dados (apenas em dev/staging).
+ * NUNCA hardcode credenciais aqui. Use variáveis de ambiente:
+ *   MONGODB_URI=<uri> ADMIN_EMAIL=<email> node clear-db.js
  */
 const { MongoClient } = require('mongodb');
 
-const MONGO_URI = "mongodb+srv://luizmagacho94_db_user:Ly181198!@cluster0.h9qtqow.mongodb.net/gestor-frota-pr?retryWrites=true&w=majority&appName=Cluster0";
-const ADMIN_EMAIL = 'magacholuiz@gmail.com';
+const MONGO_URI = process.env.MONGODB_URI;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+
+if (!MONGO_URI || !ADMIN_EMAIL) {
+  console.error('❌ Defina MONGODB_URI e ADMIN_EMAIL como variáveis de ambiente antes de executar.');
+  console.error('   Exemplo: MONGODB_URI=mongodb+srv://... ADMIN_EMAIL=admin@email.com node clear-db.js');
+  process.exit(1);
+}
 
 async function main() {
   const client = new MongoClient(MONGO_URI);
@@ -15,7 +21,6 @@ async function main() {
     console.log('✅ Conectado com sucesso ao MongoDB Atlas');
     const db = client.db();
 
-    // Listar todas as coleções existentes no banco
     const collections = await db.listCollections().toArray();
     const collectionNames = collections.map(col => col.name);
 
@@ -24,17 +29,15 @@ async function main() {
 
     for (const name of collectionNames) {
       if (name === 'users') {
-        // Na coleção de usuários, apagamos todos EXCETO o admin principal
         const result = await db.collection('users').deleteMany({ email: { $ne: ADMIN_EMAIL } });
         console.log(`👤 Coleção 'users': Mantido administrador '${ADMIN_EMAIL}'. Apagados outros ${result.deletedCount} usuários.`);
       } else {
-        // Nas demais coleções, apagamos TODOS os registros
         const result = await db.collection(name).deleteMany({});
         console.log(`🗑️  Coleção '${name}': Apagados todos os ${result.deletedCount} registros.`);
       }
     }
 
-    console.log('\n✨ O banco de dados de produção está 100% limpo e pronto para o cliente!');
+    console.log('\n✨ O banco de dados está limpo!');
   } catch (err) {
     console.error('❌ Erro durante a limpeza:', err.message);
   } finally {

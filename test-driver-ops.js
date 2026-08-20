@@ -1,13 +1,25 @@
-const fetch = require('node-fetch') || globalThis.fetch;
+/**
+ * test-driver-ops.js — Testa operações CRUD de motoristas na API.
+ * Use variáveis de ambiente:
+ *   BASE_URL=http://... API_EMAIL=... API_PASSWORD=... node test-driver-ops.js
+ */
+const fetch = globalThis.fetch || require('node-fetch');
 
-const BASE_URL = 'http://157.230.2.150:3001/api';
+const BASE_URL = process.env.BASE_URL;
+const API_EMAIL = process.env.API_EMAIL;
+const API_PASSWORD = process.env.API_PASSWORD;
+
+if (!BASE_URL || !API_EMAIL || !API_PASSWORD) {
+  console.error('❌ Defina BASE_URL, API_EMAIL e API_PASSWORD como variáveis de ambiente.');
+  process.exit(1);
+}
 
 async function run() {
   console.log('Logging in...');
   const loginRes = await fetch(`${BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'magacholuiz@gmail.com', password: 'Ly181198!' })
+    body: JSON.stringify({ email: API_EMAIL, password: API_PASSWORD })
   });
   const loginData = await loginRes.json();
   const token = loginData.accessToken;
@@ -23,7 +35,7 @@ async function run() {
   };
 
   const dummyDriver = {
-    name: 'Motorista Teste Prod',
+    name: 'Motorista Teste',
     cpf: '99988877700',
     phone: '41999990099',
     email: 'motorista.teste@email.com',
@@ -58,11 +70,9 @@ async function run() {
   const updateRes = await fetch(`${BASE_URL}/drivers/${driverId}`, {
     method: 'PUT',
     headers,
-    body: JSON.stringify({ name: 'Motorista Teste Prod Atualizado' })
+    body: JSON.stringify({ name: 'Motorista Teste Atualizado' })
   });
   console.log('Response Status:', updateRes.status);
-  const updateData = await updateRes.json().catch(() => null);
-  console.log('Response Body:', JSON.stringify(updateData, null, 2));
 
   console.log('\n3. Testing DRIVER DELETION...');
   const deleteRes = await fetch(`${BASE_URL}/drivers/${driverId}`, {
@@ -70,8 +80,6 @@ async function run() {
     headers
   });
   console.log('Response Status:', deleteRes.status);
-  const deleteText = await deleteRes.text();
-  console.log('Response Body:', deleteText);
 }
 
 run().catch(err => console.error('Error running test:', err));

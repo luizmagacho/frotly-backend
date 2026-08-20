@@ -1,33 +1,33 @@
-const mongoose = require('mongoose');
+/**
+ * check-indexes.js — Verifica os índices do MongoDB Atlas.
+ * NUNCA hardcode credenciais aqui. Use variáveis de ambiente:
+ *   MONGODB_URI=<uri> node check-indexes.js
+ */
+const { MongoClient } = require('mongodb');
 
-const ATLAS_URI = 'mongodb+srv://luizmagacho94_db_user:jUPcoN4s77wAD4co@cluster0.m57b6wj.mongodb.net/gestor-frota-pr?appName=Cluster0';
+const ATLAS_URI = process.env.MONGODB_URI;
 
-async function run() {
-  console.log('Connecting to database...');
+if (!ATLAS_URI) {
+  console.error('❌ Defina MONGODB_URI como variável de ambiente antes de executar.');
+  console.error('   Exemplo: MONGODB_URI=mongodb+srv://... node check-indexes.js');
+  process.exit(1);
+}
+
+async function main() {
+  const client = new MongoClient(ATLAS_URI);
   try {
-    await mongoose.connect(ATLAS_URI);
-    console.log('✅ Connected');
+    await client.connect();
+    const db = client.db();
 
-    const db = mongoose.connection.db;
-    
-    // Inspect drivers collection indexes
-    console.log('\n--- Drivers Collection Indexes ---');
-    const drivers = db.collection('drivers');
-    const driverIndexes = await drivers.indexes();
-    console.log(JSON.stringify(driverIndexes, null, 2));
-
-    // Inspect users collection indexes
-    console.log('\n--- Users Collection Indexes ---');
-    const users = db.collection('users');
-    const userIndexes = await users.indexes();
-    console.log(JSON.stringify(userIndexes, null, 2));
-
-  } catch (error) {
-    console.error('Error:', error);
+    const collections = ['drivers', 'vehicles', 'users', 'customers'];
+    for (const col of collections) {
+      const indexes = await db.collection(col).indexes();
+      console.log(`\n📋 Índices de '${col}':`);
+      indexes.forEach(idx => console.log(' -', JSON.stringify(idx.key), idx.unique ? '[UNIQUE]' : ''));
+    }
   } finally {
-    await mongoose.disconnect();
-    console.log('Disconnected');
+    await client.close();
   }
 }
 
-run();
+main().catch(err => console.error('Erro:', err.message));
