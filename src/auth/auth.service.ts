@@ -1,10 +1,12 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { User, UserDocument } from './schemas/user.schema';
 import { Tenant, TenantDocument } from '../tenants/schemas/tenant.schema';
+import { EmailService } from '../notifications/email/email.service';
 
 export interface TenantOption {
   id: string;
@@ -24,6 +26,7 @@ export class AuthService {
     @InjectModel(Tenant.name)
     private tenantModel: Model<TenantDocument>,
     private jwtService: JwtService,
+    private emailService: EmailService,
   ) {}
 
   /**
@@ -104,5 +107,55 @@ export class AuthService {
   /** Usado para desfazer um signup parcialmente concluído (ex.: falha ao configurar cobrança). */
   async deleteUsersByTenant(tenantId: string): Promise<void> {
     await this.userModel.deleteMany({ tenantId });
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.findByEmail(email);
+    if (!user) {
+      // Return silently to prevent email enumeration
+      return;
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    // Expires in 1 hour
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1);
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      { 
+        $set: { 
+          resetPasswordToken: hashedToken,
+          resetPasswordExpires: expires 
+        } 
+      }
+    );
+
+    await this.emailService.sendPasswordResetEmail(user.name, user.email, token);
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const user = await this.userModel.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Token inválido ou expirado.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    
+    await this.userModel.updateOne(
+      { _id: user._id },
+      {
+        $set: { password: hashedPassword },
+        $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 },
+      }
+    );
   }
 }

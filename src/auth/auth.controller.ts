@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Request, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsEmail, IsString, IsOptional, MinLength } from 'class-validator';
 import { Throttle } from '@nestjs/throttler';
@@ -13,8 +13,6 @@ class LoginDto {
   @MinLength(6)
   password: string;
 
-  // Only needed when the same email+password matches more than one tenant —
-  // the login response asks for this instead of guessing.
   @IsOptional()
   @IsString()
   tenantId?: string;
@@ -38,5 +36,30 @@ export class AuthController {
   @ApiOperation({ summary: 'Perfil do usuário logado' })
   getProfile(@Request() req: any) {
     return req.user;
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Solicitar recuperação de senha' })
+  async forgotPassword(@Body('email') email: string) {
+    if (!email) {
+      throw new BadRequestException('Email é obrigatório');
+    }
+    await this.authService.forgotPassword(email);
+    return { message: 'Se o e-mail existir, um link de recuperação foi enviado.' };
+  }
+
+  @Post('reset-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Redefinir a senha com o token' })
+  async resetPassword(@Body() body: any) {
+    if (!body.token || !body.password) {
+      throw new BadRequestException('Token e nova senha são obrigatórios');
+    }
+    if (body.password.length < 6) {
+      throw new BadRequestException('A senha deve ter pelo menos 6 caracteres');
+    }
+    await this.authService.resetPassword(body.token, body.password);
+    return { message: 'Senha atualizada com sucesso' };
   }
 }

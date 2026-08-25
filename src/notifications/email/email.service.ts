@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 export interface EmailPayload {
   to: string | string[];
@@ -12,33 +12,28 @@ export interface EmailPayload {
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: nodemailer.Transporter;
+  private resend: Resend;
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('SMTP_HOST'),
-      port: this.configService.get<number>('SMTP_PORT', 587),
-      secure: this.configService.get<boolean>('SMTP_SECURE', false),
-      auth: {
-        user: this.configService.get('SMTP_USER'),
-        pass: this.configService.get('SMTP_PASS'),
-      },
-    });
+    this.resend = new Resend(this.configService.get('RESEND_API_KEY'));
   }
 
   async send(payload: EmailPayload): Promise<void> {
     try {
-      await this.transporter.sendMail({
-        from: `"GestorFrota PR" <${this.configService.get('SMTP_FROM', 'noreply@gestorfrota.com.br')}>`,
-        to: Array.isArray(payload.to) ? payload.to.join(', ') : payload.to,
+      const from = `"GestorFrota PR" <${this.configService.get('SMTP_FROM', 'noreply@gestorfrota.com.br')}>`;
+      
+      await this.resend.emails.send({
+        from,
+        to: Array.isArray(payload.to) ? payload.to : [payload.to],
         subject: payload.subject,
         html: payload.html,
         text: payload.text,
       });
-      this.logger.log(`E-mail enviado para: ${payload.to}`);
+      
+      this.logger.log(`E-mail enviado via Resend para: ${payload.to}`);
     } catch (error) {
-      this.logger.error(`Falha ao enviar e-mail: ${error.message}`);
-      throw error;
+      // Loga o erro mas não derruba o fluxo principal conforme padrão do cliente
+      this.logger.error(`Falha ao enviar e-mail via Resend: ${error.message}`, error.stack);
     }
   }
 
@@ -141,6 +136,33 @@ export class EmailService {
             <p>Olá, <strong>${driverName}</strong>!</p>
             <p>O seu contrato de locação do veículo <strong>${plate}</strong> completou mais um ciclo de 30 dias!</p>
             <p>Por favor, informe a quilometragem atual do veículo para mantermos o histórico em dia.</p>
+          </div>
+        </div>
+      `,
+    });
+  }
+
+  async sendPasswordResetEmail(name: string, email: string, token: string): Promise<void> {
+    // Determine the frontend URL from config, defaulting if missing
+    const frontendUrl = this.configService.get('FRONTEND_URL', 'http://localhost:3000');
+    const resetLink = `${frontendUrl}/recuperar-senha?token=${token}`;
+    
+    await this.send({
+      to: email,
+      subject: `🔒 Recuperação de Senha - GestorFrota PR`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #2563EB; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+          </div>
+          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+            <p>Olá, <strong>${name}</strong>!</p>
+            <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
+            <p>Clique no botão abaixo para criar uma nova senha. Este link é válido por 1 hora.</p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${resetLink}" style="background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Redefinir Minha Senha</a>
+            </div>
+            <p style="font-size: 12px; color: #666;">Se você não solicitou a redefinição, por favor ignore este e-mail.</p>
           </div>
         </div>
       `,

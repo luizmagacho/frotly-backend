@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User, UserSchema } from './schemas/user.schema';
 import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
       { name: User.name, schema: UserSchema },
       { name: Tenant.name, schema: TenantSchema },
     ]),
+    NotificationsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
