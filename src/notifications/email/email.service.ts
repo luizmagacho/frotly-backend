@@ -20,7 +20,7 @@ export class EmailService {
 
   async send(payload: EmailPayload): Promise<void> {
     try {
-      const from = `"GestorFrota PR" <${this.configService.get('SMTP_FROM', 'noreply@gestorfrota.com.br')}>`;
+      const from = `"Frotly" <${this.configService.get('SMTP_FROM', 'noreply@gestorfrota.com.br')}>`;
       
       await this.resend.emails.send({
         from,
@@ -42,11 +42,12 @@ export class EmailService {
       to: driverEmail,
       subject: `⚠️ Pagamento Atrasado - Veículo ${plate}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #D12027; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div style="background: #0f172a; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; border-bottom: 3px solid #3b82f6;">
+            <img src="https://frotly.com.br/logo.jpg" alt="Frotly" style="height: 48px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Frotly</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+          <div style="background: #ffffff; padding: 32px; border-radius: 0 0 12px 12px;">
             <p>Olá, <strong>${driverName}</strong>!</p>
             <p>Identificamos um pagamento em atraso de <strong>R$ ${amount.toFixed(2)}</strong> referente ao aluguel do veículo <strong>${plate}</strong>.</p>
             <p>Atraso: <strong>${daysOverdue} dias</strong></p>
@@ -65,11 +66,12 @@ export class EmailService {
       to: driverEmail,
       subject: `🔔 CNH vencendo em ${daysLeft} dias`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #D12027; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div style="background: #0f172a; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; border-bottom: 3px solid #3b82f6;">
+            <img src="https://frotly.com.br/logo.jpg" alt="Frotly" style="height: 48px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Frotly</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+          <div style="background: #ffffff; padding: 32px; border-radius: 0 0 12px 12px;">
             <p>Olá, <strong>${driverName}</strong>!</p>
             <p>Sua CNH vence em <strong>${daysLeft} dias</strong>. Não esqueça de renová-la!</p>
             <p>Motoristas com CNH vencida não podem operar veículos da frota.</p>
@@ -90,11 +92,12 @@ export class EmailService {
       to: email,
       subject: `📋 ${labels[documentType] ?? documentType} do veículo ${plate} vencendo em ${daysLeft} dias`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #D12027; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div style="background: #0f172a; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; border-bottom: 3px solid #3b82f6;">
+            <img src="https://frotly.com.br/logo.jpg" alt="Frotly" style="height: 48px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Frotly</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+          <div style="background: #ffffff; padding: 32px; border-radius: 0 0 12px 12px;">
             <p>Atenção! O <strong>${labels[documentType]}</strong> do veículo <strong>${plate}</strong> vence em <strong>${daysLeft} dias</strong>.</p>
             <p>Providencie a regularização para evitar problemas legais.</p>
           </div>
@@ -108,11 +111,12 @@ export class EmailService {
       to: driverEmail,
       subject: `⏳ Lembrete de Vencimento - Veículo ${plate}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #2563EB; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div style="background: #0f172a; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; border-bottom: 3px solid #3b82f6;">
+            <img src="https://frotly.com.br/logo.jpg" alt="Frotly" style="height: 48px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Frotly</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+          <div style="background: #ffffff; padding: 32px; border-radius: 0 0 12px 12px;">
             <p>Olá, <strong>${driverName}</strong>!</p>
             <p>Este é um lembrete amigável de que a sua próxima parcela de aluguel do veículo <strong>${plate}</strong> no valor de <strong>R$ ${amount.toFixed(2)}</strong> vence em breve.</p>
             <p>Data de Vencimento: <strong>${new Date(dueDate).toLocaleDateString('pt-BR')}</strong></p>
@@ -128,11 +132,12 @@ export class EmailService {
       to: driverEmail,
       subject: `🚗 Atualização Mensal de Quilometragem - Veículo ${plate}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #10B981; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div style="background: #0f172a; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; border-bottom: 3px solid #3b82f6;">
+            <img src="https://frotly.com.br/logo.jpg" alt="Frotly" style="height: 48px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Frotly</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+          <div style="background: #ffffff; padding: 32px; border-radius: 0 0 12px 12px;">
             <p>Olá, <strong>${driverName}</strong>!</p>
             <p>O seu contrato de locação do veículo <strong>${plate}</strong> completou mais um ciclo de 30 dias!</p>
             <p>Por favor, informe a quilometragem atual do veículo para mantermos o histórico em dia.</p>
@@ -149,18 +154,19 @@ export class EmailService {
     
     await this.send({
       to: email,
-      subject: `🔒 Recuperação de Senha - GestorFrota PR`,
+      subject: `🔒 Recuperação de Senha - Frotly`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #2563EB; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">GestorFrota PR</h1>
+        <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 40px auto; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1); border-radius: 12px; border: 1px solid #e2e8f0;">
+          <div style="background: #0f172a; padding: 30px 20px; border-radius: 12px 12px 0 0; text-align: center; border-bottom: 3px solid #3b82f6;">
+            <img src="https://frotly.com.br/logo.jpg" alt="Frotly" style="height: 48px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+            <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">Frotly</h1>
           </div>
-          <div style="background: #f9f9f9; padding: 24px; border-radius: 0 0 8px 8px;">
+          <div style="background: #ffffff; padding: 32px; border-radius: 0 0 12px 12px;">
             <p>Olá, <strong>${name}</strong>!</p>
             <p>Recebemos uma solicitação para redefinir a senha da sua conta.</p>
             <p>Clique no botão abaixo para criar uma nova senha. Este link é válido por 1 hora.</p>
             <div style="margin: 30px 0; text-align: center;">
-              <a href="${resetLink}" style="background-color: #2563EB; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Redefinir Minha Senha</a>
+              <a href="${resetLink}" style="background-color: #2563EB; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; display: inline-block; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">Redefinir Minha Senha</a>
             </div>
             <p style="font-size: 12px; color: #666;">Se você não solicitou a redefinição, por favor ignore este e-mail.</p>
           </div>
