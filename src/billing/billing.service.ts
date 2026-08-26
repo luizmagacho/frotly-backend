@@ -50,11 +50,45 @@ export class BillingService {
     return !!tenant.stripeSubscriptionId && ['trialing', 'active'].includes(tenant.subscriptionStatus);
   }
 
+  /** Troca o preço da assinatura Stripe já existente (upgrade), cobrando a diferença prorata na hora. */
+  private async upgradeExistingSubscription(
+    tenant: TenantDocument,
+    plan: PlanType,
+  ): Promise<{ upgraded: true; plan: PlanType }> {
+    const stripe = this.getStripeClient();
+    const subscription = await stripe.subscriptions.retrieve(tenant.stripeSubscriptionId);
+    const item = subscription.items.data[0];
+    if (!item) {
+      throw new InternalServerErrorException('Assinatura existente não possui item de preço para atualizar.');
+    }
+
+    const updated = await stripe.subscriptions.update(tenant.stripeSubscriptionId, {
+      items: [{ id: item.id, price: this.priceIdForPlan(plan) }],
+      proration_behavior: 'always_invoice',
+      metadata: { ...subscription.metadata, plan },
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    const invoice = updated.latest_invoice as Stripe.Invoice & { payment_intent?: Stripe.PaymentIntent };
+    const paymentIntent = invoice?.payment_intent;
+    if (paymentIntent && !['succeeded', 'processing'].includes(paymentIntent.status)) {
+      throw new BadRequestException(
+        'A cobrança da diferença do upgrade não foi aprovada pelo cartão cadastrado. Atualize a forma de pagamento no Portal Financeiro e tente novamente.',
+      );
+    }
+
+    // Atualiza localmente na hora — o webhook customer.subscription.updated também vai confirmar em seguida.
+    tenant.plan = plan;
+    await tenant.save();
+
+    return { upgraded: true, plan };
+  }
+
   async createCheckoutSession(
     tenantId: string,
     plan: PlanType,
     interval: 'monthly' | 'annual' = 'monthly',
-  ): Promise<{ clientSecret: string }> {
+  ): Promise<{ clientSecret: string } | { upgraded: true; plan: PlanType }> {
     const stripe = this.getStripeClient();
     const tenant = await this.tenantModel.findById(tenantId);
     if (!tenant) {
@@ -66,6 +100,13 @@ export class BillingService {
       throw new BadRequestException(
         `Não é possível fazer downgrade do plano ${tenant.plan} para ${plan}. Cancele a assinatura atual ou entre em contato com o suporte.`,
       );
+    }
+
+    // Quem já tem assinatura ativa não passa por um novo checkout — a assinatura existente
+    // na Stripe é atualizada no lugar (com cobrança prorata imediata), senão criaríamos uma
+    // segunda assinatura em paralelo e cobraríamos os dois planos ao mesmo tempo.
+    if (isUpgradeOrChange) {
+      return this.upgradeExistingSubscription(tenant, plan);
     }
 
     let customerId = tenant.stripeCustomerId;
