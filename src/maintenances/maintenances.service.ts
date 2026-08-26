@@ -1,22 +1,22 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Maintenance, MaintenanceDocument, MaintenanceStatus } from './schemas/maintenance.schema';
+import { Maintenance, MaintenanceDocument, MaintenanceStatus, MaintenanceType } from './schemas/maintenance.schema';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { HistoryService } from '../history/history.service';
 import { EventType } from '../history/schemas/history-event.schema';
 import { FinancialEntriesService } from '../financial-entries/financial-entries.service';
 import { FinancialEntryType, FinancialEntryCategory, FinancialEntryStatus } from '../financial-entries/schemas/financial-entry.schema';
 
-import { IsString, IsNumber, IsOptional, IsDate, IsMongoId, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsDate, IsMongoId, IsEnum, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateMaintenanceDto {
   @IsMongoId()
   vehicleId: string;
 
-  @IsString()
-  type: string;
+  @IsEnum(MaintenanceType)
+  type: MaintenanceType;
 
   @Type(() => Date)
   @IsDate()

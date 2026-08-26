@@ -75,7 +75,11 @@ export class ReportsService {
   }
 
   async getFinancialPerVehicle(): Promise<any[]> {
-    const vehicles = await this.vehiclesService['vehicleModel'].find().select('_id licensePlate brand model').lean();
+    const vehicles = await this.vehiclesService['vehicleModel']
+      .find()
+      .select('_id licensePlate brand model currentDriverId')
+      .populate('currentDriverId', 'name')
+      .lean();
     
     const results = await Promise.all(vehicles.map(async (v) => {
       const ledger = await this.financialEntriesService.getVehicleLedger(v._id.toString());
@@ -106,6 +110,7 @@ export class ReportsService {
         vehicleId: v._id,
         licensePlate: v.licensePlate,
         name: `${v.brand} ${v.model}`,
+        driverName: (v.currentDriverId as any)?.name || null,
         revenue,
         maintenanceCost,
         finesCost,
