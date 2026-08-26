@@ -30,6 +30,8 @@ import { FinancialEntriesModule } from './financial-entries/financial-entries.mo
 import { InsurancesModule } from './insurances/insurances.module';
 import { RefuelsModule } from './refuels/refuels.module';
 import { IpvaModule } from './ipva/ipva.module';
+import { LicensingModule } from './licensing/licensing.module';
+import { MileageModule } from './mileage/mileage.module';
 
 @Module({
   imports: [
@@ -91,6 +93,8 @@ import { IpvaModule } from './ipva/ipva.module';
     InsurancesModule,
     RefuelsModule,
     IpvaModule,
+    LicensingModule,
+    MileageModule,
   ],
   controllers: [AppController],
   providers: [
