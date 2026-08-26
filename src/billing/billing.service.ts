@@ -53,6 +53,15 @@ export class BillingService {
     }
 
     let customerId = tenant.stripeCustomerId;
+    if (customerId) {
+      // O customerId salvo pode pertencer a uma conta Stripe diferente da configurada
+      // atualmente (ex: troca de conta/ambiente) — nesse caso ele não existe mais aqui.
+      const exists = await stripe.customers.retrieve(customerId).then(
+        (c) => !c.deleted,
+        () => false,
+      );
+      if (!exists) customerId = undefined;
+    }
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: tenant.contactEmail || undefined,
