@@ -180,6 +180,35 @@ export class MaintenancesService {
     return maintenance;
   }
 
+  async update(id: string, dto: Partial<CreateMaintenanceDto>): Promise<Maintenance> {
+    const update: any = { ...dto };
+    if (dto.vehicleId) update.vehicleId = new Types.ObjectId(dto.vehicleId);
+
+    const maintenance = await this.maintenanceModel.findByIdAndUpdate(id, { $set: update }, { new: true });
+    if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+
+    if (dto.cost !== undefined) {
+      await this.financialEntriesService.upsertBySourceId(id, {
+        vehicleId: maintenance.vehicleId,
+        type: FinancialEntryType.EXPENSE,
+        category: FinancialEntryCategory.MANUTENCAO,
+        amount: dto.cost,
+        date: maintenance.scheduledDate,
+        description: `Manutenção: ${maintenance.description}`,
+        status: maintenance.status === MaintenanceStatus.COMPLETED ? FinancialEntryStatus.PAID : FinancialEntryStatus.PENDING,
+      });
+    }
+
+    return maintenance;
+  }
+
+  async remove(id: string): Promise<Maintenance> {
+    const maintenance = await this.maintenanceModel.findByIdAndDelete(id);
+    if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+    await this.financialEntriesService.removeBySourceId(id);
+    return maintenance;
+  }
+
   async findUpcoming(daysAhead = 7): Promise<Maintenance[]> {
     const limit = new Date();
     limit.setDate(limit.getDate() + daysAhead);
