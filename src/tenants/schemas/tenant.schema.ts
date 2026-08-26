@@ -37,6 +37,9 @@ export class Tenant {
   @Prop({ trim: true })
   zipCode: string;
 
+  @Prop({ trim: true })
+  legalRepresentativeName: string;
+
   @Prop({ type: String, enum: PlanType, default: PlanType.BASIC })
   plan: PlanType;
 

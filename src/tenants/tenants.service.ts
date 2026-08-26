@@ -135,6 +135,16 @@ export class TenantsService {
     return tenant;
   }
 
+  /** Self-service update (Configurações) — quem edita o nome do responsável legal é
+   * o próprio usuário logado, então o nome de exibição dele é atualizado junto. */
+  async updateMe(tenantId: string, userId: string, updateTenantDto: UpdateTenantDto & { legalRepresentativeName?: string }): Promise<Tenant> {
+    const tenant = await this.update(tenantId, updateTenantDto);
+    if (updateTenantDto.legalRepresentativeName) {
+      await this.authService.updateUserName(userId, updateTenantDto.legalRepresentativeName);
+    }
+    return tenant;
+  }
+
   async remove(id: string): Promise<void> {
     const result = await this.tenantModel.findByIdAndDelete(id).exec();
     if (!result) {

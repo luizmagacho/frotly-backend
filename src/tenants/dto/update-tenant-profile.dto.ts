@@ -40,4 +40,10 @@ export class UpdateTenantProfileDto {
   @IsOptional()
   @IsString()
   zipCode?: string;
+
+  @ApiPropertyOptional({ description: 'Nome do responsável legal pela empresa' })
+  @IsOptional()
+  @IsString()
+  @MinLength(2, { message: 'O nome do responsável legal deve ter no mínimo 2 caracteres.' })
+  legalRepresentativeName?: string;
 }

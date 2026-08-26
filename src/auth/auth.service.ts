@@ -158,4 +158,8 @@ export class AuthService {
       }
     );
   }
+
+  async updateUserName(userId: string, name: string): Promise<void> {
+    await this.userModel.updateOne({ _id: userId }, { $set: { name } });
+  }
 }

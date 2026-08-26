@@ -44,7 +44,7 @@ export class TenantsController {
   @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
   @ApiOperation({ summary: 'Atualizar dados da própria locadora (nome, CNPJ, endereço)' })
   updateMe(@Request() req: any, @Body() dto: UpdateTenantProfileDto) {
-    return this.tenantsService.update(req.user.tenantId, dto as UpdateTenantDto);
+    return this.tenantsService.updateMe(req.user.tenantId, req.user.userId, dto as UpdateTenantDto);
   }
 
   @Post()
