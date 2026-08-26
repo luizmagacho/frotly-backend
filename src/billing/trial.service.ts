@@ -9,9 +9,9 @@ import { Tenant, TenantDocument, PlanType } from '../tenants/schemas/tenant.sche
 // Nomes amigáveis e preço mensal de referência de cada plano — usados para exibir o
 // status do plano/trial na plataforma sem precisar consultar o Stripe a cada request.
 const PLAN_INFO: Record<PlanType, { name: string; monthlyPrice: number }> = {
-  [PlanType.BASIC]: { name: 'Plano Básico', monthlyPrice: 99 },
-  [PlanType.PRO]: { name: 'Plano Profissional', monthlyPrice: 249 },
-  [PlanType.ENTERPRISE]: { name: 'Plano Enterprise', monthlyPrice: 599 },
+  [PlanType.BASIC]: { name: 'Plano Básico', monthlyPrice: 149 },
+  [PlanType.PRO]: { name: 'Plano Profissional', monthlyPrice: 349 },
+  [PlanType.ENTERPRISE]: { name: 'Plano Enterprise', monthlyPrice: 999 },
 };
 
 @Injectable()
