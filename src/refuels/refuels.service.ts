@@ -3,7 +3,7 @@ import { CreateRefuelDto } from './dto/create-refuel.dto';
 import { UpdateRefuelDto } from './dto/update-refuel.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Refuel, RefuelDocument } from './schemas/refuel.schema';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { FinancialEntriesService } from '../financial-entries/financial-entries.service';
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
@@ -28,13 +28,14 @@ export class RefuelsService {
   }
 
   async create(createRefuelDto: CreateRefuelDto & { paymentMethod?: string }) {
-    const tenantId = this.getTenantId();
-    
+    const tenantId = new Types.ObjectId(this.getTenantId());
+    const vehicleId = new Types.ObjectId(createRefuelDto.vehicleId);
+
     // Check for mileage validation
     const lastRefuel = await this.refuelModel.findOne({
       tenantId,
-      vehicleId: createRefuelDto.vehicleId
-    }).sort({ date: -1 }).exec();
+      vehicleId,
+    } as any).sort({ date: -1 }).exec();
 
     if (lastRefuel && createRefuelDto.currentMileage < lastRefuel.currentMileage) {
       throw new BadRequestException('A quilometragem informada é menor que a do último abastecimento.');
@@ -43,6 +44,8 @@ export class RefuelsService {
     const createdRefuel = new this.refuelModel({
       ...createRefuelDto,
       tenantId,
+      vehicleId,
+      driverId: createRefuelDto.driverId ? new Types.ObjectId(createRefuelDto.driverId) : undefined,
     });
     
     const savedRefuel = await createdRefuel.save();
@@ -73,17 +76,17 @@ export class RefuelsService {
   }
 
   async findAll(vehicleId?: string) {
-    const tenantId = this.getTenantId();
+    const tenantId = new Types.ObjectId(this.getTenantId());
     const query: any = { tenantId };
     if (vehicleId) {
-      query.vehicleId = vehicleId;
+      query.vehicleId = new Types.ObjectId(vehicleId);
     }
     return this.refuelModel.find(query).populate('vehicleId').populate('driverId').sort({ date: -1 }).exec();
   }
 
   async findOne(id: string) {
-    const tenantId = this.getTenantId();
-    const refuel = await this.refuelModel.findOne({ _id: id, tenantId }).populate('vehicleId').populate('driverId').exec();
+    const tenantId = new Types.ObjectId(this.getTenantId());
+    const refuel = await this.refuelModel.findOne({ _id: id, tenantId } as any).populate('vehicleId').populate('driverId').exec();
     if (!refuel) {
       throw new NotFoundException(`Abastecimento não encontrado`);
     }
@@ -91,13 +94,13 @@ export class RefuelsService {
   }
 
   async update(id: string, updateRefuelDto: UpdateRefuelDto) {
-    const tenantId = this.getTenantId();
+    const tenantId = new Types.ObjectId(this.getTenantId());
     const updatedRefuel = await this.refuelModel.findOneAndUpdate(
-      { _id: id, tenantId },
+      { _id: id, tenantId } as any,
       updateRefuelDto,
       { new: true }
     ).exec();
-    
+
     if (!updatedRefuel) {
       throw new NotFoundException(`Abastecimento não encontrado`);
     }
@@ -105,8 +108,8 @@ export class RefuelsService {
   }
 
   async remove(id: string) {
-    const tenantId = this.getTenantId();
-    const deletedRefuel = await this.refuelModel.findOneAndDelete({ _id: id, tenantId }).exec();
+    const tenantId = new Types.ObjectId(this.getTenantId());
+    const deletedRefuel = await this.refuelModel.findOneAndDelete({ _id: id, tenantId } as any).exec();
     if (!deletedRefuel) {
       throw new NotFoundException(`Abastecimento não encontrado`);
     }
