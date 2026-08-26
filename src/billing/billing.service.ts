@@ -45,7 +45,7 @@ export class BillingService {
     tenantId: string,
     plan: PlanType,
     interval: 'monthly' | 'annual' = 'monthly',
-  ): Promise<{ url: string }> {
+  ): Promise<{ clientSecret: string }> {
     const stripe = this.getStripeClient();
     const tenant = await this.tenantModel.findById(tenantId);
     if (!tenant) {
@@ -97,24 +97,25 @@ export class BillingService {
     }
 
     const session = await stripe.checkout.sessions.create({
+      ui_mode: 'embedded_page' as any,
       mode: 'subscription',
+      locale: 'pt-BR',
+      payment_method_collection: 'always',
       customer: customerId,
       line_items: [{ price: this.priceIdForPlan(plan), quantity: 1 }],
       subscription_data: {
         trial_period_days: 7,
         metadata: { tenantId, plan, interval },
-        billing_cycle_anchor: interval === 'annual' ? Math.floor(Date.now() / 1000) : undefined,
       },
       discounts: discountData ? [discountData] : undefined,
-      success_url: `${frontendUrl}/planos?billing=success&plan=${plan}`,
-      cancel_url: `${frontendUrl}/planos?billing=cancelled`,
+      return_url: `${frontendUrl}/planos/checkout/retorno?session_id={CHECKOUT_SESSION_ID}`,
       metadata: { tenantId, plan, interval },
     });
 
-    if (!session.url) {
-      throw new InternalServerErrorException('Stripe não retornou uma URL de checkout.');
+    if (!session.client_secret) {
+      throw new InternalServerErrorException('Stripe não retornou um client_secret para o checkout embedded.');
     }
-    return { url: session.url };
+    return { clientSecret: session.client_secret };
   }
 
   async createPortalSession(tenantId: string): Promise<{ url: string }> {
