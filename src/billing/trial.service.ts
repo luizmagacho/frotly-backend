@@ -11,7 +11,7 @@ import { Tenant, TenantDocument, PlanType } from '../tenants/schemas/tenant.sche
 const PLAN_INFO: Record<PlanType, { name: string; monthlyPrice: number }> = {
   [PlanType.BASIC]: { name: 'Plano Básico', monthlyPrice: 149 },
   [PlanType.PRO]: { name: 'Plano Profissional', monthlyPrice: 349 },
-  [PlanType.ENTERPRISE]: { name: 'Plano Enterprise', monthlyPrice: 999 },
+  [PlanType.ENTERPRISE]: { name: 'Plano Enterprise', monthlyPrice: 649 },
 };
 
 @Injectable()
