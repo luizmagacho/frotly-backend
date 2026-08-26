@@ -41,6 +41,15 @@ export class BillingService {
     );
   }
 
+  /** Índice do plano na escala Basic < Pro < Enterprise, para comparar upgrade/downgrade. */
+  private planTier(plan: PlanType): number {
+    return [PlanType.BASIC, PlanType.PRO, PlanType.ENTERPRISE].indexOf(plan);
+  }
+
+  private hasActiveSubscription(tenant: TenantDocument): boolean {
+    return !!tenant.stripeSubscriptionId && ['trialing', 'active'].includes(tenant.subscriptionStatus);
+  }
+
   async createCheckoutSession(
     tenantId: string,
     plan: PlanType,
@@ -50,6 +59,13 @@ export class BillingService {
     const tenant = await this.tenantModel.findById(tenantId);
     if (!tenant) {
       throw new NotFoundException('Locadora não encontrada.');
+    }
+
+    const isUpgradeOrChange = this.hasActiveSubscription(tenant);
+    if (isUpgradeOrChange && this.planTier(plan) < this.planTier(tenant.plan)) {
+      throw new BadRequestException(
+        `Não é possível fazer downgrade do plano ${tenant.plan} para ${plan}. Cancele a assinatura atual ou entre em contato com o suporte.`,
+      );
     }
 
     let customerId = tenant.stripeCustomerId;
@@ -113,7 +129,8 @@ export class BillingService {
       customer: customerId,
       line_items: [{ price: this.priceIdForPlan(plan), quantity: 1 }],
       subscription_data: {
-        trial_period_days: 7,
+        // Trial só no primeiro contrato — upgrade de quem já é assinante ativo não ganha novo trial.
+        trial_period_days: isUpgradeOrChange ? undefined : 7,
         metadata: { tenantId, plan, interval },
       },
       discounts: discountData ? [discountData] : undefined,
@@ -132,6 +149,18 @@ export class BillingService {
     const tenant = await this.tenantModel.findById(tenantId);
     if (!tenant?.stripeCustomerId) {
       throw new BadRequestException('Esta locadora ainda não possui uma assinatura.');
+    }
+
+    // O customerId salvo pode pertencer a uma conta Stripe diferente da configurada
+    // atualmente (ex: troca de conta/ambiente) — nesse caso ele não existe mais aqui.
+    const exists = await stripe.customers.retrieve(tenant.stripeCustomerId).then(
+      (c) => !c.deleted,
+      () => false,
+    );
+    if (!exists) {
+      throw new BadRequestException(
+        'Não foi possível localizar sua assinatura no Stripe. Assine um plano novamente para reativar o gerenciamento de faturas.',
+      );
     }
 
     const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
