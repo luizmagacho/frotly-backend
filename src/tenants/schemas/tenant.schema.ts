@@ -28,6 +28,15 @@ export class Tenant {
   @Prop({ trim: true })
   contactPhone: string;
 
+  @Prop({ trim: true })
+  address: string;
+
+  @Prop({ trim: true })
+  city: string;
+
+  @Prop({ trim: true })
+  zipCode: string;
+
   @Prop({ type: String, enum: PlanType, default: PlanType.BASIC })
   plan: PlanType;
 

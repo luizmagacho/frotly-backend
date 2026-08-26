@@ -23,6 +23,21 @@ export class CreateTenantDto {
   @IsString()
   contactPhone?: string;
 
+  @ApiPropertyOptional({ description: 'Endereço completo (rua, número, bairro)' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'Cidade - UF' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional({ description: 'CEP' })
+  @IsOptional()
+  @IsString()
+  zipCode?: string;
+
   @ApiPropertyOptional({ description: 'Plano contratado', enum: PlanType })
   @IsOptional()
   @IsEnum(PlanType, { message: 'Plano inválido.' })

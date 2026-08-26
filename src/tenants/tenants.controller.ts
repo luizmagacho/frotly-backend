@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
+import { UpdateTenantProfileDto } from './dto/update-tenant-profile.dto';
 import { SignupTenantDto } from './dto/signup-tenant.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -26,6 +27,24 @@ export class TenantsController {
   @ApiOperation({ summary: 'Branding público de um tenant, por subdomínio (sem autenticação)' })
   findPublicBySubdomain(@Param('subdomain') subdomain: string) {
     return this.tenantsService.findPublicBySubdomain(subdomain);
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Dados da própria locadora (nome, CNPJ, endereço)' })
+  findMe(@Request() req: any) {
+    return this.tenantsService.findOne(req.user.tenantId);
+  }
+
+  @Patch('me')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPERADMIN)
+  @ApiOperation({ summary: 'Atualizar dados da própria locadora (nome, CNPJ, endereço)' })
+  updateMe(@Request() req: any, @Body() dto: UpdateTenantProfileDto) {
+    return this.tenantsService.update(req.user.tenantId, dto as UpdateTenantDto);
   }
 
   @Post()
