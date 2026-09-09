@@ -1,10 +1,20 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
 import { DriversService } from '../drivers/drivers.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { RentalsService } from '../rentals/rentals.service';
 import { EmailService } from './email/email.service';
 import { WhatsAppService } from './whatsapp/whatsapp.service';
+import { Notification, NotificationDocument, NotificationType } from './schemas/notification.schema';
+import { User, UserDocument, UserRole } from '../auth/schemas/user.schema';
+
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  ipva: 'IPVA',
+  licensing: 'Licenciamento',
+  insurance: 'Seguro',
+};
 
 @Injectable()
 export class NotificationsService {
@@ -16,7 +26,34 @@ export class NotificationsService {
     private rentalsService: RentalsService,
     private emailService: EmailService,
     private whatsAppService: WhatsAppService,
+    @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
+
+  /** Cria uma notificação in-app para todo admin/superadmin do tenant informado. */
+  private async notifyTenantAdmins(
+    tenantId: Types.ObjectId | string,
+    data: { title: string; message: string; type: NotificationType; link?: string; metadata?: Record<string, unknown> },
+  ): Promise<void> {
+    const admins = await this.userModel
+      .find({ tenantId: new Types.ObjectId(tenantId.toString()), role: { $in: [UserRole.ADMIN, UserRole.SUPERADMIN] }, isActive: true })
+      .select('_id')
+      .lean();
+
+    if (!admins.length) return;
+
+    await this.notificationModel.insertMany(
+      admins.map((admin) => ({
+        tenantId: new Types.ObjectId(tenantId.toString()),
+        userId: admin._id,
+        title: data.title,
+        message: data.message,
+        type: data.type,
+        link: data.link,
+        metadata: data.metadata,
+      })),
+    );
+  }
 
   /** Runs every day at 8am — check expiring driver licenses (30 days ahead) */
   @Cron('0 8 * * *')
@@ -46,7 +83,6 @@ export class NotificationsService {
     this.logger.log('Verificando documentos de veículos próximos ao vencimento...');
 
     const vehicles = await this.vehiclesService.findWithExpiringDocuments(30);
-    const adminEmail = process.env.ADMIN_EMAIL ?? '';
 
     for (const vehicle of vehicles) {
       const vDoc = vehicle as any;
@@ -64,9 +100,14 @@ export class NotificationsService {
             (new Date(check.date).getTime() - now) / (1000 * 60 * 60 * 24),
           );
           if (daysLeft <= 30 && daysLeft >= 0) {
-            await Promise.allSettled([
-              this.emailService.sendDocumentExpirationAlert(adminEmail, vehicle.licensePlate, check.type, daysLeft),
-            ]);
+            const label = DOCUMENT_TYPE_LABELS[check.type] ?? check.type;
+            await this.notifyTenantAdmins(vDoc.tenantId, {
+              title: `${label} vencendo em ${daysLeft} dias`,
+              message: `O ${label} do veículo ${vehicle.licensePlate} vence em ${daysLeft} dias. Providencie a regularização para evitar problemas legais.`,
+              type: NotificationType.DOCUMENT_EXPIRATION,
+              link: `/veiculos/${vDoc._id}`,
+              metadata: { vehicleId: vDoc._id?.toString(), plate: vehicle.licensePlate, documentType: check.type, daysLeft },
+            });
           }
         }
       }
@@ -175,10 +216,36 @@ export class NotificationsService {
       });
     }
   }
-  /** Retrieve mock in-app notifications for scaffolding */
-  async getInAppNotifications(): Promise<any[]> {
-    return [
-      { id: '1', title: 'Boas-vindas', message: 'Sistema de notificações In-App configurado.', isRead: false, createdAt: new Date() }
-    ];
+  async findForUser(tenantId: string, userId: string, limit = 50): Promise<Notification[]> {
+    return this.notificationModel
+      .find({ tenantId: new Types.ObjectId(tenantId), userId: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .exec();
+  }
+
+  async countUnread(tenantId: string, userId: string): Promise<number> {
+    return this.notificationModel.countDocuments({
+      tenantId: new Types.ObjectId(tenantId),
+      userId: new Types.ObjectId(userId),
+      isRead: false,
+    });
+  }
+
+  async markAsRead(id: string, tenantId: string, userId: string): Promise<Notification> {
+    const notification = await this.notificationModel.findOneAndUpdate(
+      { _id: id, tenantId: new Types.ObjectId(tenantId), userId: new Types.ObjectId(userId) },
+      { $set: { isRead: true } },
+      { new: true },
+    );
+    if (!notification) throw new NotFoundException('Notificação não encontrada.');
+    return notification;
+  }
+
+  async markAllAsRead(tenantId: string, userId: string): Promise<void> {
+    await this.notificationModel.updateMany(
+      { tenantId: new Types.ObjectId(tenantId), userId: new Types.ObjectId(userId), isRead: false },
+      { $set: { isRead: true } },
+    );
   }
 }

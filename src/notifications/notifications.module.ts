@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { EmailService } from './email/email.service';
@@ -8,6 +9,8 @@ import { WhatsAppService } from './whatsapp/whatsapp.service';
 import { DriversModule } from '../drivers/drivers.module';
 import { VehiclesModule } from '../vehicles/vehicles.module';
 import { RentalsModule } from '../rentals/rentals.module';
+import { Notification, NotificationSchema } from './schemas/notification.schema';
+import { User, UserSchema } from '../auth/schemas/user.schema';
 
 @Module({
   imports: [
@@ -15,6 +18,10 @@ import { RentalsModule } from '../rentals/rentals.module';
     DriversModule,
     VehiclesModule,
     RentalsModule,
+    MongooseModule.forFeature([
+      { name: Notification.name, schema: NotificationSchema },
+      { name: User.name, schema: UserSchema },
+    ]),
   ],
   controllers: [NotificationsController],
   providers: [NotificationsService, EmailService, WhatsAppService],

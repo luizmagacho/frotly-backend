@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Patch, Param, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { NotificationsService } from './notifications.service';
@@ -26,9 +26,27 @@ export class NotificationsController {
     return this.notificationsService.sendTestNotification(dto.email, dto.phone);
   }
 
-  @Get('in-app')
-  @ApiOperation({ summary: 'Recuperar notificações in-app do usuário logado' })
-  getInAppNotifications() {
-    return this.notificationsService.getInAppNotifications();
+  @Get()
+  @ApiOperation({ summary: 'Listar notificações in-app do usuário logado' })
+  findAll(@Request() req: any) {
+    return this.notificationsService.findForUser(req.user.tenantId, req.user.userId);
+  }
+
+  @Get('unread-count')
+  @ApiOperation({ summary: 'Contagem de notificações não lidas do usuário logado' })
+  countUnread(@Request() req: any) {
+    return this.notificationsService.countUnread(req.user.tenantId, req.user.userId);
+  }
+
+  @Patch(':id/read')
+  @ApiOperation({ summary: 'Marcar uma notificação como lida' })
+  markAsRead(@Param('id') id: string, @Request() req: any) {
+    return this.notificationsService.markAsRead(id, req.user.tenantId, req.user.userId);
+  }
+
+  @Patch('read-all')
+  @ApiOperation({ summary: 'Marcar todas as notificações do usuário como lidas' })
+  markAllAsRead(@Request() req: any) {
+    return this.notificationsService.markAllAsRead(req.user.tenantId, req.user.userId);
   }
 }
