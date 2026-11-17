@@ -4,11 +4,12 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { Tenant } from './schemas/tenant.schema';
 import { AuthService } from '../auth/auth.service';
+import { TrialService } from '../billing/trial.service';
 
 describe('TenantsService', () => {
   let service: TenantsService;
   let tenantModel: jest.Mock & Record<string, jest.Mock>;
-  let authService: { createUser: jest.Mock; login: jest.Mock };
+  let authService: { createUser: jest.Mock; login: jest.Mock; deleteUsersByTenant: jest.Mock };
   let lastSavedDoc: any;
 
   const buildTenantModelMock = () => {
@@ -35,13 +36,14 @@ describe('TenantsService', () => {
 
   beforeEach(async () => {
     tenantModel = buildTenantModelMock();
-    authService = { createUser: jest.fn(), login: jest.fn() };
+    authService = { createUser: jest.fn(), login: jest.fn(), deleteUsersByTenant: jest.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TenantsService,
         { provide: getModelToken(Tenant.name), useValue: tenantModel },
         { provide: AuthService, useValue: authService },
+        { provide: TrialService, useValue: { setPaymentMethod: jest.fn(), initiateTrial: jest.fn() } },
       ],
     }).compile();
 

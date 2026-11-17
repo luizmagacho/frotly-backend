@@ -3,6 +3,7 @@ import { RentalsService } from './rentals.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { Rental, PaymentFrequency } from './schemas/rental.schema';
 import { VehiclesService } from '../vehicles/vehicles.service';
+import { FinancialEntry } from '../financial-entries/schemas/financial-entry.schema';
 
 describe('RentalsService - generatePaymentSchedule', () => {
   let service: any; // Using any to access private method for testing
@@ -12,6 +13,7 @@ describe('RentalsService - generatePaymentSchedule', () => {
       providers: [
         RentalsService,
         { provide: getModelToken(Rental.name), useValue: {} },
+        { provide: getModelToken(FinancialEntry.name), useValue: {} },
         { provide: VehiclesService, useValue: {} },
       ],
     }).compile();

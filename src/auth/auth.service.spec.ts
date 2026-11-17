@@ -5,6 +5,7 @@ import { UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { User, UserRole } from './schemas/user.schema';
 import { Tenant } from '../tenants/schemas/tenant.schema';
+import { EmailService } from '../notifications/email/email.service';
 
 jest.mock('bcryptjs', () => ({
   compare: jest.fn(),
@@ -40,6 +41,7 @@ describe('AuthService', () => {
         { provide: getModelToken(User.name), useValue: userModel },
         { provide: getModelToken(Tenant.name), useValue: tenantModel },
         { provide: JwtService, useValue: jwtService },
+        { provide: EmailService, useValue: { sendPasswordResetEmail: jest.fn() } },
       ],
     }).compile();
 
@@ -161,6 +163,7 @@ describe('AuthService', () => {
           },
           { provide: getModelToken(Tenant.name), useValue: tenantModel },
           { provide: JwtService, useValue: jwtService },
+          { provide: EmailService, useValue: { sendPasswordResetEmail: jest.fn() } },
         ],
       }).compile();
       const svc = module.get<AuthService>(AuthService);

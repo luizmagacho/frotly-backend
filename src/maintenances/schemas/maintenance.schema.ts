@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type MaintenanceDocument = Maintenance & Document;
 
@@ -18,10 +18,10 @@ export enum MaintenanceStatus {
 
 @Schema({ timestamps: true, collection: 'maintenances' })
 export class Maintenance {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true, index: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true })
   vehicleId: Types.ObjectId;
 
   @Prop({ type: String, enum: MaintenanceType, required: true })

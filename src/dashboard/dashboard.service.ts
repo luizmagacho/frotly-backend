@@ -5,6 +5,7 @@ import { Vehicle, VehicleDocument, VehicleStatus } from '../vehicles/schemas/veh
 import { Driver, DriverDocument, DriverStatus } from '../drivers/schemas/driver.schema';
 import { Rental, RentalDocument, RentalStatus } from '../rentals/schemas/rental.schema';
 import { Maintenance, MaintenanceDocument, MaintenanceStatus } from '../maintenances/schemas/maintenance.schema';
+import { Fine, FineDocument, FineStatus } from '../fines/schemas/fine.schema';
 
 @Injectable()
 export class DashboardService {
@@ -13,6 +14,7 @@ export class DashboardService {
     @InjectModel(Driver.name) private driverModel: Model<DriverDocument>,
     @InjectModel(Rental.name) private rentalModel: Model<RentalDocument>,
     @InjectModel(Maintenance.name) private maintenanceModel: Model<MaintenanceDocument>,
+    @InjectModel(Fine.name) private fineModel: Model<FineDocument>,
   ) {}
 
   async getKpis() {
@@ -25,6 +27,12 @@ export class DashboardService {
     ]);
 
     const activeRentals = await this.rentalModel.countDocuments({ status: RentalStatus.ACTIVE });
+
+    // "Multas pendentes" = ainda não pagas nem canceladas (inclui as em recurso).
+    const [pendingFines] = await this.fineModel.aggregate([
+      { $match: { status: { $in: [FineStatus.PENDING, FineStatus.APPEALED] } } },
+      { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$value' } } },
+    ]);
 
     return {
       vehicles: {
@@ -41,8 +49,8 @@ export class DashboardService {
         idleVehicles: availableVehicles,
       },
       fines: {
-        count: 0,
-        total: 0
+        count: pendingFines?.count ?? 0,
+        total: Math.round((pendingFines?.total ?? 0) * 100) / 100,
       },
       alerts: {
         ipva: 0,

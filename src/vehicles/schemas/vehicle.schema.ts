@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type VehicleDocument = Vehicle & Document;
 
@@ -42,7 +42,7 @@ export enum TransmissionType {
   toObject: { virtuals: true }
 })
 export class Vehicle {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true, index: true })
   tenantId: Types.ObjectId;
 
   @Prop({ required: true, uppercase: true, trim: true })
@@ -84,7 +84,7 @@ export class Vehicle {
   @Prop({ type: String, enum: VehicleStatus, default: VehicleStatus.AVAILABLE })
   status: VehicleStatus;
 
-  @Prop({ type: Types.ObjectId, ref: 'Driver', default: null })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Driver', default: null })
   currentDriverId: Types.ObjectId;
 
   @Prop({ type: [String], default: [] })

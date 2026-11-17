@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type FinancialEntryDocument = FinancialEntry & Document;
 
@@ -27,10 +27,10 @@ export enum FinancialEntryStatus {
 
 @Schema({ timestamps: true, collection: 'financial_entries' })
 export class FinancialEntry {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true, index: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true, index: true })
   vehicleId: Types.ObjectId;
 
   @Prop({ type: String, enum: FinancialEntryType, required: true })
@@ -51,8 +51,8 @@ export class FinancialEntry {
   @Prop({ trim: true })
   description: string;
 
-  @Prop({ type: Types.ObjectId })
-  sourceId: Types.ObjectId;
+  @Prop({ type: String })
+  sourceId: string;
 }
 
 export const FinancialEntrySchema = SchemaFactory.createForClass(FinancialEntry);

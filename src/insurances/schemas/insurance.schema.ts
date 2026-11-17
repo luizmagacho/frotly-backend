@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export enum InsuranceStatus {
   ACTIVE = 'ACTIVE',
@@ -11,10 +11,10 @@ export type InsuranceDocument = Insurance & Document;
 
 @Schema({ timestamps: true })
 export class Insurance {
-  @Prop({ type: Types.ObjectId, required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, required: true, index: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true, index: true })
   vehicleId: Types.ObjectId;
 
   @Prop({ required: false })

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type InspectionDocument = Inspection & Document;
 
@@ -29,16 +29,16 @@ class DamageItem {
 
 @Schema({ timestamps: true, collection: 'inspections' })
 export class Inspection {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true, index: true })
   tenantId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Rental', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Rental', required: true, index: true })
   rentalId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true, index: true })
   vehicleId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Driver', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Driver', required: true, index: true })
   driverId: Types.ObjectId;
 
   @Prop({ type: String, enum: InspectionType, required: true })

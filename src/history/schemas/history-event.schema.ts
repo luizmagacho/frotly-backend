@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type HistoryEventDocument = HistoryEvent & Document;
 
@@ -29,10 +29,10 @@ export enum EventType {
 
 @Schema({ timestamps: true, collection: 'history_events' })
 export class HistoryEvent {
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true })
   vehicleId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Driver', default: null })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Driver', default: null })
   driverId: Types.ObjectId;
 
   @Prop({ type: String, enum: EventType, required: true })

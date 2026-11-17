@@ -28,7 +28,6 @@ export class ReportsController {
   }
 
   @Get('financial')
-  @RequiresPlan(PlanType.PRO)
   @ApiOperation({ summary: 'Lucro/Prejuízo por veículo' })
   getFinancialPerVehicle() {
     return this.reportsService.getFinancialPerVehicle();

@@ -8,7 +8,7 @@ import { Tenant, PlanType } from '../tenants/schemas/tenant.schema';
 // Variables prefixed with "mock" are exempt from Jest's out-of-scope-variable
 // restriction on jest.mock() factories (jest.mock calls are hoisted above imports).
 const mockStripeInstance = {
-  customers: { create: jest.fn() },
+  customers: { create: jest.fn(), retrieve: jest.fn() },
   checkout: { sessions: { create: jest.fn() } },
   billingPortal: { sessions: { create: jest.fn() } },
   subscriptions: { retrieve: jest.fn() },
@@ -38,6 +38,8 @@ describe('BillingService', () => {
   beforeEach(async () => {
     stripeMock = mockStripeInstance;
     stripeMock.customers.create.mockReset();
+    // Existing customer ids are checked against Stripe before reuse; default to "exists".
+    stripeMock.customers.retrieve.mockReset().mockResolvedValue({ id: 'cus_existing', deleted: false });
     stripeMock.checkout.sessions.create.mockReset();
     stripeMock.billingPortal.sessions.create.mockReset();
     stripeMock.subscriptions.retrieve.mockReset();
@@ -80,7 +82,7 @@ describe('BillingService', () => {
       const tenant = buildTenantDoc();
       tenantModel.findById.mockResolvedValue(tenant);
       stripeMock.customers.create.mockResolvedValue({ id: 'cus_new' });
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: 'https://checkout.stripe.com/session_abc' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({ client_secret: 'cs_secret_abc' });
 
       const result = await service.createCheckoutSession('tenant-1', PlanType.PRO);
 
@@ -89,13 +91,13 @@ describe('BillingService', () => {
       );
       expect(tenant.stripeCustomerId).toBe('cus_new');
       expect(tenant.save).toHaveBeenCalled();
-      expect(result).toEqual({ url: 'https://checkout.stripe.com/session_abc' });
+      expect(result).toEqual({ clientSecret: 'cs_secret_abc' });
     });
 
     it('reuses an existing Stripe customer instead of creating a new one', async () => {
       const tenant = buildTenantDoc({ stripeCustomerId: 'cus_existing' });
       tenantModel.findById.mockResolvedValue(tenant);
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: 'https://checkout.stripe.com/session_xyz' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({ client_secret: 'cs_secret_xyz' });
 
       await service.createCheckoutSession('tenant-1', PlanType.BASIC);
 
@@ -108,7 +110,7 @@ describe('BillingService', () => {
     it('maps the requested plan to the configured Stripe price id', async () => {
       const tenant = buildTenantDoc({ stripeCustomerId: 'cus_existing' });
       tenantModel.findById.mockResolvedValue(tenant);
-      stripeMock.checkout.sessions.create.mockResolvedValue({ url: 'https://checkout.stripe.com/session' });
+      stripeMock.checkout.sessions.create.mockResolvedValue({ client_secret: 'cs_secret' });
 
       await service.createCheckoutSession('tenant-1', PlanType.ENTERPRISE);
 

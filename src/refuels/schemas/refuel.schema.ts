@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export enum FuelType {
   GASOLINE = 'GASOLINE',
@@ -10,13 +10,13 @@ export enum FuelType {
 
 @Schema({ timestamps: true })
 export class Refuel {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true })
   tenantId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true })
   vehicleId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Driver', required: false })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Driver', required: false })
   driverId?: string;
 
   @Prop({ required: true })

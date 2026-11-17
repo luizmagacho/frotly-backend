@@ -32,6 +32,7 @@ import { RefuelsModule } from './refuels/refuels.module';
 import { IpvaModule } from './ipva/ipva.module';
 import { LicensingModule } from './licensing/licensing.module';
 import { MileageModule } from './mileage/mileage.module';
+import { FinesModule } from './fines/fines.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { MileageModule } from './mileage/mileage.module';
     IpvaModule,
     LicensingModule,
     MileageModule,
+    FinesModule,
   ],
   controllers: [AppController],
   providers: [

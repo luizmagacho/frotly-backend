@@ -37,6 +37,12 @@ export class LicensingController {
     return this.licensingService.update(req.user.tenantId, id, dto);
   }
 
+  @Patch(':id/pay')
+  @ApiOperation({ summary: 'Marcar licenciamento como pago' })
+  markAsPaid(@Request() req, @Param('id') id: string, @Body('paidAt') paidAt?: string) {
+    return this.licensingService.markAsPaid(req.user.tenantId, id, paidAt);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Delete a licensing record' })
   remove(@Request() req, @Param('id') id: string) {

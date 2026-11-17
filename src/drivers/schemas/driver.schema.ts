@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type DriverDocument = Driver & Document;
 
@@ -39,7 +39,7 @@ export enum LicenseCategory {
 
 @Schema({ timestamps: true, collection: 'drivers' })
 export class Driver {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true, index: true })
   tenantId: Types.ObjectId;
 
   @Prop({ required: true, trim: true })

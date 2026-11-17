@@ -99,11 +99,24 @@ export class FinancialEntriesService {
     private rentalModel: Model<RentalDocument>,
   ) {}
 
+  /**
+   * Os campos de referência do schema são `Mixed` (declarados como Types.ObjectId), então o
+   * Mongoose NÃO converte texto para ObjectId. Um tenantId gravado como texto fica invisível
+   * para o tenantPlugin, que filtra por ObjectId — o lançamento some do financeiro e o
+   * upsert por sourceId passa a duplicar. Por isso todo lançamento passa por aqui.
+   */
+  private normalizeRefs<T extends Record<string, any>>(dto: T): T {
+    const out: any = { ...dto };
+    for (const key of ['tenantId', 'vehicleId']) {
+      const v = out[key];
+      if (typeof v === 'string' && Types.ObjectId.isValid(v)) out[key] = new Types.ObjectId(v);
+    }
+    if (out.sourceId != null) out.sourceId = String(out.sourceId);
+    return out;
+  }
+
   create(dto: CreateFinancialEntryDto): Promise<FinancialEntry> {
-    const entry = new this.financialEntryModel({
-      ...dto,
-      vehicleId: new Types.ObjectId(dto.vehicleId),
-    });
+    const entry = new this.financialEntryModel(this.normalizeRefs(dto as any));
     return entry.save();
   }
 
@@ -114,23 +127,18 @@ export class FinancialEntriesService {
   }
 
   async update(id: string, dto: UpdateFinancialEntryDto): Promise<FinancialEntry> {
-    const entry = await this.financialEntryModel.findByIdAndUpdate(id, { $set: dto }, { new: true });
+    const entry = await this.financialEntryModel.findByIdAndUpdate(id, { $set: this.normalizeRefs(dto as any) }, { new: true });
     if (!entry) throw new NotFoundException(`Lançamento ${id} não encontrado.`);
     return entry;
   }
 
   async upsertBySourceId(sourceId: string, dto: any): Promise<FinancialEntry> {
-    const existing = await this.financialEntryModel.findOne({ sourceId: new Types.ObjectId(sourceId) });
+    const data = this.normalizeRefs({ ...dto, sourceId: String(sourceId) });
+    const existing = await this.financialEntryModel.findOne({ sourceId: data.sourceId });
     if (existing) {
-      return this.financialEntryModel.findByIdAndUpdate(existing._id, { $set: dto }, { new: true }) as any;
-    } else {
-      const entry = new this.financialEntryModel({
-        ...dto,
-        vehicleId: new Types.ObjectId(dto.vehicleId),
-        sourceId: new Types.ObjectId(sourceId),
-      });
-      return entry.save();
+      return this.financialEntryModel.findByIdAndUpdate(existing._id, { $set: data }, { new: true }) as any;
     }
+    return new this.financialEntryModel(data).save();
   }
 
   async remove(id: string): Promise<void> {
@@ -139,7 +147,7 @@ export class FinancialEntriesService {
   }
 
   async removeBySourceId(sourceId: string): Promise<void> {
-    await this.financialEntryModel.deleteMany({ sourceId: new Types.ObjectId(sourceId) });
+    await this.financialEntryModel.deleteMany({ sourceId: String(sourceId) });
   }
 
   async getVehicleLedger(vehicleId: string) {

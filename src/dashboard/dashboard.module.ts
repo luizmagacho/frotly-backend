@@ -7,6 +7,7 @@ import { Vehicle, VehicleSchema } from '../vehicles/schemas/vehicle.schema';
 import { Driver, DriverSchema } from '../drivers/schemas/driver.schema';
 import { Rental, RentalSchema } from '../rentals/schemas/rental.schema';
 import { Maintenance, MaintenanceSchema } from '../maintenances/schemas/maintenance.schema';
+import { Fine, FineSchema } from '../fines/schemas/fine.schema';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { Maintenance, MaintenanceSchema } from '../maintenances/schemas/maintena
       { name: Driver.name, schema: DriverSchema },
       { name: Rental.name, schema: RentalSchema },
       { name: Maintenance.name, schema: MaintenanceSchema },
+      { name: Fine.name, schema: FineSchema },
     ]),
   ],
   controllers: [DashboardController],

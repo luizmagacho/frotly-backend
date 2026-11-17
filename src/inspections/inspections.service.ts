@@ -40,7 +40,8 @@ export class InspectionsService {
     return this.inspectionModel
       .find(filter)
       .populate('rentalId', '_id')
-      .populate('vehicleId', 'plate model brand')
+      // `plate` é um virtual de licensePlate — selecionar o virtual não traz o campo real.
+      .populate('vehicleId', 'licensePlate model brand')
       .populate('driverId', 'name phone')
       .sort({ createdAt: -1 });
   }

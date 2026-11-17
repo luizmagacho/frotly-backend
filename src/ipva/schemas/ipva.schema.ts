@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export enum IpvaStatus {
   PENDING = 'PENDING',
@@ -20,16 +20,16 @@ export class IpvaInstallment {
   @Prop({ required: true, enum: IpvaStatus, default: IpvaStatus.PENDING })
   status: IpvaStatus;
 
-  @Prop({ type: Types.ObjectId, ref: 'FinancialEntry' })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'FinancialEntry' })
   financialEntryId?: string; // Link to the specific financial entry in the ledger
 }
 
 @Schema({ timestamps: true })
 export class Ipva {
-  @Prop({ type: Types.ObjectId, ref: 'Tenant', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tenant', required: true })
   tenantId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Vehicle', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Vehicle', required: true })
   vehicleId: string;
 
   @Prop({ required: true })

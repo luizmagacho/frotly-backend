@@ -5,6 +5,7 @@ import { Vehicle, VehicleStatus } from '../vehicles/schemas/vehicle.schema';
 import { Driver } from '../drivers/schemas/driver.schema';
 import { Rental, RentalStatus } from '../rentals/schemas/rental.schema';
 import { Maintenance } from '../maintenances/schemas/maintenance.schema';
+import { Fine } from '../fines/schemas/fine.schema';
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -12,12 +13,14 @@ describe('DashboardService', () => {
   let driverModel: { find: jest.Mock };
   let rentalModel: { countDocuments: jest.Mock; aggregate: jest.Mock };
   let maintenanceModel: { find: jest.Mock };
+  let fineModel: { aggregate: jest.Mock };
 
   beforeEach(async () => {
     vehicleModel = { countDocuments: jest.fn() };
     driverModel = { find: jest.fn() };
     rentalModel = { countDocuments: jest.fn(), aggregate: jest.fn() };
     maintenanceModel = { find: jest.fn().mockReturnValue({ populate: jest.fn().mockResolvedValue([]) }) };
+    fineModel = { aggregate: jest.fn().mockResolvedValue([]) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -26,6 +29,7 @@ describe('DashboardService', () => {
         { provide: getModelToken(Driver.name), useValue: driverModel },
         { provide: getModelToken(Rental.name), useValue: rentalModel },
         { provide: getModelToken(Maintenance.name), useValue: maintenanceModel },
+        { provide: getModelToken(Fine.name), useValue: fineModel },
       ],
     }).compile();
 
@@ -54,6 +58,18 @@ describe('DashboardService', () => {
       expect(result.vehicles.byStatus).toEqual({ AVAILABLE: 5, RENTED: 4, MAINTENANCE: 1, INACTIVE: 0 });
       expect(result.rentals).toEqual({ active: 4, idleVehicles: 5 });
       expect(rentalModel.countDocuments).toHaveBeenCalledWith({ status: RentalStatus.ACTIVE });
+      expect(result.fines).toEqual({ count: 0, total: 0 });
+    });
+
+    it('reports pending fines (pending + under appeal) from the fines collection', async () => {
+      vehicleModel.countDocuments.mockResolvedValue(0);
+      rentalModel.countDocuments.mockResolvedValue(0);
+      fineModel.aggregate.mockResolvedValue([{ _id: null, count: 3, total: 586.944 }]);
+
+      const result = await service.getKpis();
+
+      expect(result.fines).toEqual({ count: 3, total: 586.94 });
+      expect(fineModel.aggregate.mock.calls[0][0][0]).toEqual({ $match: { status: { $in: ['PENDING', 'APPEALED'] } } });
     });
   });
 
