@@ -11,6 +11,7 @@ import { VehiclesModule } from '../vehicles/vehicles.module';
 import { RentalsModule } from '../rentals/rentals.module';
 import { Notification, NotificationSchema } from './schemas/notification.schema';
 import { User, UserSchema } from '../auth/schemas/user.schema';
+import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { User, UserSchema } from '../auth/schemas/user.schema';
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
       { name: User.name, schema: UserSchema },
+      { name: Tenant.name, schema: TenantSchema },
     ]),
   ],
   controllers: [NotificationsController],

@@ -35,8 +35,8 @@ export class ReportsController {
 
   @Get('mileage')
   @RequiresPlan(PlanType.PRO)
-  @ApiOperation({ summary: 'Quilometragem por veículo' })
-  getMileagePerVehicle() {
-    return this.reportsService.getMileagePerVehicle();
+  @ApiOperation({ summary: 'Rodagem e custo por km por veículo (plano Pro)' })
+  getMileagePerVehicle(@Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number) {
+    return this.reportsService.getMileagePerVehicle(Math.min(365, Math.max(7, days)));
   }
 }

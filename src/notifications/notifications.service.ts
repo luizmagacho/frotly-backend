@@ -9,6 +9,7 @@ import { EmailService } from './email/email.service';
 import { WhatsAppService } from './whatsapp/whatsapp.service';
 import { Notification, NotificationDocument, NotificationType } from './schemas/notification.schema';
 import { User, UserDocument, UserRole } from '../auth/schemas/user.schema';
+import { Tenant, TenantDocument, PlanType } from '../tenants/schemas/tenant.schema';
 
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   ipva: 'IPVA',
@@ -28,7 +29,24 @@ export class NotificationsService {
     private whatsAppService: WhatsAppService,
     @InjectModel(Notification.name) private notificationModel: Model<NotificationDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Tenant.name) private tenantModel: Model<TenantDocument>,
   ) {}
+
+  /**
+   * Lembretes por WhatsApp são exclusivos do plano Enterprise: cada mensagem enviada tem
+   * custo. Devolve os ids dos tenants que podem receber; e-mail continua para todos.
+   */
+  private async whatsAppTenantIds(): Promise<Set<string>> {
+    const tenants = await this.tenantModel
+      .find({ plan: PlanType.ENTERPRISE, isActive: { $ne: false } })
+      .select('_id')
+      .lean();
+    return new Set(tenants.map((t) => String(t._id)));
+  }
+
+  private allowsWhatsApp(allowed: Set<string>, tenantId: unknown): boolean {
+    return tenantId != null && allowed.has(String((tenantId as any)?._id ?? tenantId));
+  }
 
   /** Cria uma notificação in-app para todo admin/superadmin do tenant informado. */
   private async notifyTenantAdmins(
@@ -61,6 +79,7 @@ export class NotificationsService {
     this.logger.log('Verificando CNHs próximas ao vencimento...');
 
     const drivers = await this.driversService.findWithExpiringLicense(30);
+    const whatsAppTenants = await this.whatsAppTenantIds();
 
     for (const driver of drivers) {
       const daysLeft = Math.ceil(
@@ -70,7 +89,9 @@ export class NotificationsService {
       const driverDoc = driver as any;
       await Promise.allSettled([
         this.emailService.sendLicenseExpirationWarning(driver.name, driver.email, daysLeft),
-        this.whatsAppService.sendLicenseExpirationWarning(driver.name, driver.phone, daysLeft),
+        this.allowsWhatsApp(whatsAppTenants, driverDoc.tenantId)
+          ? this.whatsAppService.sendLicenseExpirationWarning(driver.name, driver.phone, daysLeft)
+          : Promise.resolve(),
       ]);
     }
 
@@ -122,6 +143,7 @@ export class NotificationsService {
     this.logger.log('Verificando pagamentos de aluguel atrasados...');
 
     const overdueRentals = await this.rentalsService.findOverduePayments();
+    const whatsAppTenants = await this.whatsAppTenantIds();
 
     for (const rental of overdueRentals) {
       const rentalDoc = rental as any;
@@ -141,7 +163,9 @@ export class NotificationsService {
 
       await Promise.allSettled([
         this.emailService.sendPaymentOverdue(driver.name, driver.email, vehicle.licensePlate, totalOverdue, daysOverdue),
-        this.whatsAppService.sendPaymentOverdueAlert(driver.name, driver.phone, vehicle.licensePlate, totalOverdue),
+        this.allowsWhatsApp(whatsAppTenants, rentalDoc.tenantId)
+          ? this.whatsAppService.sendPaymentOverdueAlert(driver.name, driver.phone, vehicle.licensePlate, totalOverdue)
+          : Promise.resolve(),
       ]);
     }
 
@@ -154,6 +178,7 @@ export class NotificationsService {
     this.logger.log('Verificando pagamentos próximos ao vencimento...');
 
     const upcomingRentals = await this.rentalsService.findUpcomingPayments(2);
+    const whatsAppTenants = await this.whatsAppTenantIds();
 
     for (const rental of upcomingRentals) {
       const rentalDoc = rental as any;
@@ -172,7 +197,9 @@ export class NotificationsService {
       for (const payment of upcomingPayments) {
         await Promise.allSettled([
           this.emailService.sendPaymentUpcomingWarning(driver.name, driver.email, vehicle.licensePlate, payment.amount, payment.dueDate),
-          this.whatsAppService.sendPaymentUpcomingWarning(driver.name, driver.phone, vehicle.licensePlate, payment.amount, payment.dueDate),
+          this.allowsWhatsApp(whatsAppTenants, rentalDoc.tenantId)
+            ? this.whatsAppService.sendPaymentUpcomingWarning(driver.name, driver.phone, vehicle.licensePlate, payment.amount, payment.dueDate)
+            : Promise.resolve(),
         ]);
       }
     }
@@ -186,6 +213,7 @@ export class NotificationsService {
     this.logger.log('Verificando fechamento de ciclo de quilometragem mensal...');
 
     const monthlyRentals = await this.rentalsService.findRentalsForMonthlyMileage();
+    const whatsAppTenants = await this.whatsAppTenantIds();
 
     for (const rental of monthlyRentals) {
       const rentalDoc = rental as any;
@@ -194,7 +222,9 @@ export class NotificationsService {
 
       await Promise.allSettled([
         this.emailService.sendMileageUpdateReminder(driver.name, driver.email, vehicle.licensePlate),
-        this.whatsAppService.sendMileageUpdateReminder(driver.name, driver.phone, vehicle.licensePlate),
+        this.allowsWhatsApp(whatsAppTenants, rentalDoc.tenantId)
+          ? this.whatsAppService.sendMileageUpdateReminder(driver.name, driver.phone, vehicle.licensePlate)
+          : Promise.resolve(),
       ]);
     }
 
