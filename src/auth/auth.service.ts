@@ -7,6 +7,7 @@ import * as crypto from 'crypto';
 import { User, UserDocument } from './schemas/user.schema';
 import { Tenant, TenantDocument } from '../tenants/schemas/tenant.schema';
 import { EmailService } from '../notifications/email/email.service';
+import { tenantContext } from '../common/tenant.context';
 
 export interface TenantOption {
   id: string;
@@ -73,6 +74,8 @@ export class AuthService {
       }
     }
 
+    await this.userModel.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } }).catch(() => undefined);
+
     const payload = { sub: user._id, email: user.email, role: user.role, tenantId: user.tenantId };
     const accessToken = this.jwtService.sign(payload);
 
@@ -136,7 +139,22 @@ export class AuthService {
     await this.emailService.sendPasswordResetEmail(user.name, user.email, token);
   }
 
-  async resetPassword(token: string, newPassword: string): Promise<void> {
+  /**
+   * Gera um link de uso único para criar/redefinir a senha. Só o hash fica no banco.
+   * Convites valem 7 dias; recuperação de senha, 1 hora.
+   */
+  async issuePasswordToken(userId: string, hours: number): Promise<string> {
+    const token = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $set: { resetPasswordToken: hashedToken, resetPasswordExpires: new Date(Date.now() + hours * 3600_000) } },
+    );
+    return token;
+  }
+
+  /** Também conclui um convite. Devolve e-mail e locadora para o frontend já fazer o login. */
+  async resetPassword(token: string, newPassword: string): Promise<{ email: string; tenantId: string }> {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const user = await this.userModel.findOne({
@@ -149,14 +167,20 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
-    
-    await this.userModel.updateOne(
-      { _id: user._id },
-      {
-        $set: { password: hashedPassword },
-        $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 },
-      }
+
+    // Rota pública: quem age é o dono do link, não um token que o navegador tenha guardado
+    // de outra pessoa. Roda no contexto dele para a auditoria registrar a pessoa certa.
+    const tenantId = String(user.tenantId);
+    await tenantContext.run({ tenantId, actor: { userId: String(user._id), email: user.email } }, () =>
+      this.userModel.updateOne(
+        { _id: user._id },
+        {
+          $set: { password: hashedPassword, pendingInvite: false },
+          $unset: { resetPasswordToken: 1, resetPasswordExpires: 1 },
+        },
+      ).exec(), // exec() aqui dentro: a query do Mongoose só roda quando executada, e precisa rodar neste contexto
     );
+    return { email: user.email, tenantId };
   }
 
   async updateUserName(userId: string, name: string): Promise<void> {

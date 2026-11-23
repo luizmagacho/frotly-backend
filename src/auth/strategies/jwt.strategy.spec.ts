@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { Types } from 'mongoose';
 import { JwtStrategy } from './jwt.strategy';
+import { clearUserCache } from '../user-cache';
 
 describe('JwtStrategy.validate', () => {
   const userId = new Types.ObjectId();
@@ -10,6 +11,7 @@ describe('JwtStrategy.validate', () => {
   let strategy: JwtStrategy;
 
   beforeEach(() => {
+    clearUserCache();
     doc = { _id: userId, isActive: true, role: 'ADMIN', tenantId, email: 'a@x.com' };
     findById = jest.fn(() => ({ select: () => ({ lean: () => Promise.resolve(doc) }) }));
     const config: any = { get: () => 'x'.repeat(40) };
@@ -35,6 +37,12 @@ describe('JwtStrategy.validate', () => {
 
   it('recusa token cujo tenant não bate com o do usuário', async () => {
     await expect(strategy.validate(payload({ tenantId: String(new Types.ObjectId()) }))).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('converte cargos antigos (MANAGER/VIEWER) para ADMIN', async () => {
+    doc.role = 'VIEWER';
+    const user = await strategy.validate(payload());
+    expect(user.role).toBe('ADMIN');
   });
 
   it('guarda em cache por pouco tempo (não consulta o banco a cada requisição)', async () => {

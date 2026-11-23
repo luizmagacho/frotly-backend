@@ -3,6 +3,8 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { MinRole } from '../auth/decorators/min-role.decorator';
+import { UserRole } from '../auth/schemas/user.schema';
 
 class TestNotificationDto {
   @IsEmail()
@@ -21,6 +23,7 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Post('test')
+  @MinRole(UserRole.ADMIN) // envia WhatsApp, que é cobrado por mensagem
   @ApiOperation({ summary: 'Enviar notificação de teste (e-mail + WhatsApp)' })
   sendTest(@Body() dto: TestNotificationDto) {
     return this.notificationsService.sendTestNotification(dto.email, dto.phone);
@@ -39,12 +42,14 @@ export class NotificationsController {
   }
 
   @Patch(':id/read')
+  @MinRole(UserRole.READ)
   @ApiOperation({ summary: 'Marcar uma notificação como lida' })
   markAsRead(@Param('id') id: string, @Request() req: any) {
     return this.notificationsService.markAsRead(id, req.user.tenantId, req.user.userId);
   }
 
   @Patch('read-all')
+  @MinRole(UserRole.READ)
   @ApiOperation({ summary: 'Marcar todas as notificações do usuário como lidas' })
   markAllAsRead(@Request() req: any) {
     return this.notificationsService.markAllAsRead(req.user.tenantId, req.user.userId);

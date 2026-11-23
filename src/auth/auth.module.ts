@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { RoleMigrationService } from './role-migration.service';
 import { User, UserSchema } from './schemas/user.schema';
 import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -28,7 +29,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     NotificationsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, RoleMigrationService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

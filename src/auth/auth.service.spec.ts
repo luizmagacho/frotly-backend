@@ -15,7 +15,7 @@ import * as bcrypt from 'bcryptjs';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let userModel: { find: jest.Mock; findOne: jest.Mock };
+  let userModel: { find: jest.Mock; findOne: jest.Mock; updateOne: jest.Mock };
   let tenantModel: { find: jest.Mock };
   let jwtService: { sign: jest.Mock };
 
@@ -31,7 +31,7 @@ describe('AuthService', () => {
   });
 
   beforeEach(async () => {
-    userModel = { find: jest.fn(), findOne: jest.fn() };
+    userModel = { find: jest.fn(), findOne: jest.fn(), updateOne: jest.fn(() => Promise.resolve()) } as any;
     tenantModel = { find: jest.fn() };
     jwtService = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
 
@@ -168,7 +168,7 @@ describe('AuthService', () => {
       }).compile();
       const svc = module.get<AuthService>(AuthService);
 
-      await svc.createUser('new@user.com', 'plaintext', 'New User', 'tenant-1', UserRole.MANAGER);
+      await svc.createUser('new@user.com', 'plaintext', 'New User', 'tenant-1', UserRole.WRITE);
 
       expect(bcrypt.hash).toHaveBeenCalledWith('plaintext', 12);
       expect(saveMock).toHaveBeenCalled();

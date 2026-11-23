@@ -7,6 +7,7 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { join } from 'path';
 import { tenantPlugin } from './common/tenant.plugin';
+import { auditPlugin } from './common/audit.plugin';
 import { TenantMiddleware } from './common/tenant.middleware';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -34,6 +35,8 @@ import { IpvaModule } from './ipva/ipva.module';
 import { LicensingModule } from './licensing/licensing.module';
 import { MileageModule } from './mileage/mileage.module';
 import { FinesModule } from './fines/fines.module';
+import { UsersModule } from './users/users.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -61,7 +64,9 @@ import { FinesModule } from './fines/fines.module';
           'mongodb://localhost:27017/gestor-frota-pr',
         ),
         connectionFactory: (connection) => {
+          // Ordem importa: o filtro de locadora entra antes da auditoria ler o "antes" do registro.
           connection.plugin(tenantPlugin);
+          connection.plugin(auditPlugin);
           return connection;
         },
       }),
@@ -99,6 +104,8 @@ import { FinesModule } from './fines/fines.module';
     LicensingModule,
     MileageModule,
     FinesModule,
+    UsersModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [

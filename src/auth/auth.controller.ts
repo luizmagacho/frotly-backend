@@ -59,7 +59,7 @@ export class AuthController {
     if (body.password.length < 6) {
       throw new BadRequestException('A senha deve ter pelo menos 6 caracteres');
     }
-    await this.authService.resetPassword(body.token, body.password);
-    return { message: 'Senha atualizada com sucesso' };
+    const { email, tenantId } = await this.authService.resetPassword(body.token, body.password);
+    return { message: 'Senha atualizada com sucesso', email, tenantId };
   }
 }

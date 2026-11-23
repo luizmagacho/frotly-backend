@@ -3,11 +3,19 @@ import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
 
+/**
+ * Cargos dentro de uma locadora:
+ * - READ: só consulta.
+ * - WRITE: consulta, cadastra, edita e exclui registros da operação.
+ * - ADMIN: tudo do WRITE + usuários, auditoria, dados da empresa e cobrança.
+ * SUPERADMIN é da plataforma (Frotly), não de uma locadora.
+ * Os antigos MANAGER/VIEWER são convertidos para ADMIN na inicialização (RoleMigrationService).
+ */
 export enum UserRole {
   SUPERADMIN = 'SUPERADMIN',
   ADMIN = 'ADMIN',
-  MANAGER = 'MANAGER',
-  VIEWER = 'VIEWER',
+  WRITE = 'WRITE',
+  READ = 'READ',
 }
 
 @Schema({ timestamps: true, collection: 'users' })
@@ -26,11 +34,27 @@ export class User {
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ type: String, enum: UserRole, default: UserRole.MANAGER })
+  @Prop({ type: String, enum: UserRole, default: UserRole.READ })
   role: UserRole;
 
   @Prop({ default: true })
   isActive: boolean;
+
+  /** Convidado que ainda não definiu a senha pelo link do e-mail de boas-vindas. */
+  @Prop({ default: false })
+  pendingInvite: boolean;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
+  invitedBy?: Types.ObjectId;
+
+  @Prop()
+  invitedAt?: Date;
+
+  @Prop()
+  lastLoginAt?: Date;
+
+  @Prop()
+  deactivatedAt?: Date;
 
   @Prop()
   resetPasswordToken?: string;

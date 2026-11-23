@@ -24,12 +24,12 @@ describe('RolesGuard', () => {
 
   it('allows the request through when no @Roles() metadata is present', () => {
     reflector.getAllAndOverride.mockReturnValue(undefined);
-    expect(guard.canActivate(buildContext({ role: UserRole.VIEWER }))).toBe(true);
+    expect(guard.canActivate(buildContext({ role: UserRole.READ }))).toBe(true);
   });
 
   it('allows the request through when @Roles() is an empty array', () => {
     reflector.getAllAndOverride.mockReturnValue([]);
-    expect(guard.canActivate(buildContext({ role: UserRole.VIEWER }))).toBe(true);
+    expect(guard.canActivate(buildContext({ role: UserRole.READ }))).toBe(true);
   });
 
   it('allows a user whose role is in the required list', () => {
@@ -39,7 +39,7 @@ describe('RolesGuard', () => {
 
   it('rejects a user whose role is not in the required list', () => {
     reflector.getAllAndOverride.mockReturnValue([UserRole.ADMIN, UserRole.SUPERADMIN]);
-    expect(() => guard.canActivate(buildContext({ role: UserRole.MANAGER }))).toThrow(ForbiddenException);
+    expect(() => guard.canActivate(buildContext({ role: UserRole.WRITE }))).toThrow(ForbiddenException);
   });
 
   it('rejects when there is no authenticated user at all', () => {
