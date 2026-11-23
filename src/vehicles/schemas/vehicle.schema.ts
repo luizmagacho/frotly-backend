@@ -66,6 +66,14 @@ export class Vehicle {
   @Prop({ required: true, trim: true })
   renavam: string;
 
+  /** UF de emplacamento (ex.: RJ). Define em qual Detran consultar multas, licenciamento e IPVA. */
+  @Prop({ trim: true, uppercase: true })
+  uf?: string;
+
+  /** CPF/CNPJ (só dígitos) do proprietário no Detran, quando não é o CNPJ da locadora. */
+  @Prop({ trim: true })
+  ownerDocument?: string;
+
   @Prop({ required: true, trim: true })
   chassis: string;
 

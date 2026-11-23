@@ -49,6 +49,10 @@ export class Tenant {
   @Prop({ default: true })
   isActive: boolean;
 
+  /** Consulta automática no Detran (multas, licenciamento, IPVA). Ligada pela Frotly, pois tem custo por consulta. */
+  @Prop({ default: false })
+  detranSyncEnabled: boolean;
+
   // Branding — white-label identity for this tenant.
   // Not `required` at the schema level: existing tenants predate this field, and a
   // required+unique index would fail to build against docs that all lack it. New

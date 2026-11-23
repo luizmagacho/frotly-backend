@@ -27,7 +27,7 @@ import {
   ApiConsumes,
 } from '@nestjs/swagger';
 import { VehiclesService } from './vehicles.service';
-import { CreateVehicleDto } from './dto/create-vehicle.dto';
+import { CreateVehicleDto, UpdateVehicleDto } from './dto/create-vehicle.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { VehicleStatus } from './schemas/vehicle.schema';
 
@@ -88,7 +88,7 @@ export class VehiclesController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Atualizar dados do veículo' })
-  update(@Param('id') id: string, @Body() updateData: Partial<CreateVehicleDto>) {
+  update(@Param('id') id: string, @Body() updateData: UpdateVehicleDto) {
     return this.vehiclesService.update(id, updateData);
   }
 

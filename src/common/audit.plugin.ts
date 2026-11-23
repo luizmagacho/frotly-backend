@@ -16,7 +16,7 @@ import { getActor, getTenantId } from './tenant.context';
 export const AUDIT_COLLECTION = 'audit_logs';
 
 /** Coleções que não fazem sentido auditar (logs de si mesmas ou ruído). */
-const SKIP_COLLECTIONS = new Set([AUDIT_COLLECTION, 'notifications', 'history_events']);
+const SKIP_COLLECTIONS = new Set([AUDIT_COLLECTION, 'notifications', 'history_events', 'detran_queries']);
 
 /** Campos que não entram no diff: técnicos ou sensíveis. */
 const IGNORED_FIELDS = new Set([

@@ -86,6 +86,10 @@ export class Fine {
 
   @Prop({ trim: true })
   notes?: string;
+
+  /** De onde veio: cadastrada à mão ou encontrada na consulta ao Detran (ex.: DETRAN_RJ). */
+  @Prop({ trim: true, default: 'MANUAL' })
+  source?: string;
 }
 
 export const FineSchema = SchemaFactory.createForClass(Fine);

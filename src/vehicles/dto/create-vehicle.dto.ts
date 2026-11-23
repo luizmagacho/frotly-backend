@@ -8,10 +8,14 @@ import {
   Max,
   MinLength,
   MaxLength,
+  IsIn,
+  Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform, Type } from 'class-transformer';
+import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { FuelType, TransmissionType } from '../schemas/vehicle.schema';
+
+export const UFS = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
 export class CreateVehicleDto {
   @ApiPropertyOptional({ description: 'Placa do veículo (nomenclatura interna)', example: 'ABC1D23' })
@@ -55,6 +59,18 @@ export class CreateVehicleDto {
   @MinLength(9, { message: 'O RENAVAM deve ter no mínimo 9 dígitos.' })
   @MaxLength(11, { message: 'O RENAVAM deve ter no máximo 11 dígitos.' })
   renavam: string;
+
+  @ApiPropertyOptional({ description: 'UF de emplacamento', example: 'RJ' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() || undefined : value))
+  @IsIn(UFS, { message: 'UF inválida.' })
+  uf?: string;
+
+  @ApiPropertyOptional({ description: 'CPF/CNPJ do proprietário no Detran (quando não é o CNPJ da locadora)' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.replace(/\D/g, '') : value))
+  @Matches(/^(\d{11}|\d{14})?$/, { message: 'Documento do proprietário deve ser um CPF (11 dígitos) ou CNPJ (14 dígitos).' })
+  ownerDocument?: string;
 
   @ApiProperty({ description: 'Chassi (17 caracteres)', example: '9BWZZZ377VT004251' })
   @IsString({ message: 'O chassi deve ser um texto.' })
@@ -130,3 +146,6 @@ export class CreateVehicleDto {
   @IsString()
   fipeModelName?: string;
 }
+
+/** Edição: mesmos campos e validações do cadastro, todos opcionais. */
+export class UpdateVehicleDto extends PartialType(CreateVehicleDto) {}

@@ -49,7 +49,7 @@ export class NotificationsService {
   }
 
   /** Cria uma notificação in-app para todo admin/superadmin do tenant informado. */
-  private async notifyTenantAdmins(
+  async notifyTenantAdmins(
     tenantId: Types.ObjectId | string,
     data: { title: string; message: string; type: NotificationType; link?: string; metadata?: Record<string, unknown> },
   ): Promise<void> {
