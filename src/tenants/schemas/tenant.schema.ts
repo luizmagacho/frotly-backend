@@ -19,8 +19,11 @@ export class Tenant {
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, unique: true, trim: true })
-  cnpj: string;
+  // Opcional: um cliente pode ser cadastrado antes de mandar o CNPJ e preencher depois em
+  // Configurações. O índice único continua o mesmo (sem sparse) para não conflitar com o que
+  // já existe em produção; ele aceita uma única locadora sem CNPJ por vez.
+  @Prop({ unique: true, trim: true })
+  cnpj?: string;
 
   @Prop({ trim: true })
   contactEmail: string;

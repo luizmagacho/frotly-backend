@@ -7,10 +7,11 @@
  *
  * Em produção, dentro do container:
  *   docker compose exec backend node dist/src/scripts/onboard-client.js \
- *     --name "Start2 Locadora" --cnpj 12345678000199 --email financeiro@start2.com.br \
+ *     --name "Start2 Locadora" [--cnpj 12345678000199] --email financeiro@start2.com.br \
  *     --admin-name "Financeiro Start2" --plan PRO --trial-days 7 [--apply]
  *
  * --trial-days 0 = sem período de teste (cobrança combinada fora do app).
+ * --cnpj é opcional: sem ele, o cliente preenche depois em Configurações.
  */
 import { NestFactory } from '@nestjs/core';
 import { getModelToken } from '@nestjs/mongoose';
@@ -55,7 +56,7 @@ async function main() {
   const apply = a.apply === true;
 
   if (!name) fail('Informe --name (nome da locadora).');
-  if (cnpj.length !== 14) fail('Informe --cnpj com 14 dígitos.');
+  if (cnpj && cnpj.length !== 14) fail('--cnpj deve ter 14 dígitos (ou deixe de fora para preencher depois).');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail('Informe --email válido.');
   if (!adminName) fail('Informe --admin-name (nome de quem vai receber o acesso).');
   if (!Object.values(PlanType).includes(plan)) fail(`Informe --plan: ${Object.values(PlanType).join(', ')}.`);
@@ -66,13 +67,21 @@ async function main() {
     const tenantModel = app.get<Model<TenantDocument>>(getModelToken(Tenant.name));
     const userModel = app.get<Model<UserDocument>>(getModelToken(User.name));
 
-    const sameCnpj = await tenantModel.findOne({ cnpj: { $in: [cnpj, cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')] } }).select('name').lean();
-    if (sameCnpj) fail(`Já existe uma locadora com esse CNPJ: ${sameCnpj.name} (${sameCnpj._id}). Para dar acesso a mais alguém lá, use o painel de Usuários.`);
+    if (cnpj) {
+      const sameCnpj = await tenantModel.findOne({ cnpj: { $in: [cnpj, cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')] } }).select('name').lean();
+      if (sameCnpj) fail(`Já existe uma locadora com esse CNPJ: ${sameCnpj.name} (${sameCnpj._id}). Para dar acesso a mais alguém lá, use o painel de Usuários.`);
+    } else {
+      // O índice único de CNPJ aceita só uma locadora sem CNPJ por vez.
+      const noCnpj = await tenantModel.findOne({ $or: [{ cnpj: { $exists: false } }, { cnpj: null }, { cnpj: '' }] } as any).select('name').lean();
+      if (noCnpj) fail(`Já existe uma locadora sem CNPJ (${noCnpj.name}, ${noCnpj._id}). Preencha o CNPJ dela antes ou informe --cnpj.`);
+    }
+    const sameName = await tenantModel.findOne({ name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }).select('name').lean();
+    if (sameName) fail(`Já existe uma locadora com esse nome: ${sameName.name} (${sameName._id}).`);
     const elsewhere = await userModel.find({ email }).select('tenantId').lean();
 
     console.log('\nCliente novo');
     console.log(`  Locadora:   ${name}`);
-    console.log(`  CNPJ:       ${cnpj}`);
+    console.log(`  CNPJ:       ${cnpj || '(não informado, o cliente preenche em Configurações)'}`);
     console.log(`  Plano:      ${plan}`);
     console.log(`  Teste:      ${trialDays ? `${trialDays} dias` : 'sem período de teste'}`);
     console.log(`  Admin:      ${adminName} <${email}> (Administrador, convite por e-mail)`);
@@ -87,7 +96,7 @@ async function main() {
     const trialService = app.get(TrialService);
     const usersService = app.get(UsersService);
 
-    const tenant: any = await tenantsService.create({ name, cnpj, contactEmail: email, plan } as any);
+    const tenant: any = await tenantsService.create({ name, ...(cnpj ? { cnpj } : {}), contactEmail: email, plan } as any);
     const tenantId = String(tenant._id);
     try {
       if (trialDays > 0) {

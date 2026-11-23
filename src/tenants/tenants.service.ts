@@ -39,7 +39,7 @@ export class TenantsService {
   }
 
   async create(createTenantDto: CreateTenantDto): Promise<Tenant> {
-    const existing = await this.tenantModel.findOne({ cnpj: createTenantDto.cnpj });
+    const existing = createTenantDto.cnpj ? await this.tenantModel.findOne({ cnpj: createTenantDto.cnpj }) : null;
     if (existing) {
       throw new ConflictException('Já existe uma locadora cadastrada com este CNPJ.');
     }
