@@ -27,8 +27,11 @@ export class AuditLog {
   @Prop() entityId?: string;
   @Prop() label?: string;
 
-  @Prop({ type: [{ field: String, from: MongooseSchema.Types.Mixed, to: MongooseSchema.Types.Mixed, _id: false }], default: [] })
-  changes: { field: string; from: unknown; to: unknown }[];
+  @Prop({
+    type: [{ field: String, sub: String, index: Number, hint: String, op: String, from: MongooseSchema.Types.Mixed, to: MongooseSchema.Types.Mixed, _id: false }],
+    default: [],
+  })
+  changes: { field: string; from: unknown; to: unknown; sub?: string; index?: number; hint?: string; op?: 'added' | 'removed' }[];
 
   @Prop({ type: MongooseSchema.Types.Mixed })
   snapshot?: unknown;

@@ -33,19 +33,33 @@ const MAX_BULK = 200;
 
 const logger = new Logger('Audit');
 
-export type AuditChange = { field: string; from: unknown; to: unknown };
+/**
+ * Uma mudança. Campos simples: { field, from, to }. Dentro de objetos: `sub` traz o caminho
+ * (ex.: field 'address', sub 'city'). Dentro de listas (ex.: pagamentos de um aluguel):
+ * `index` é a posição do item (começa em 1), `hint` ajuda a reconhecê-lo (vencimento, nome)
+ * e `op` diz se o item foi adicionado ou removido (aí from/to trazem o item resumido).
+ */
+export type AuditChange = { field: string; from: unknown; to: unknown; sub?: string; index?: number; hint?: string; op?: 'added' | 'removed' };
 export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+
+const isObjectId = (v: any) => v instanceof Types.ObjectId || v?._bsontype === 'ObjectId';
+const isPlainObject = (v: any): v is Record<string, any> =>
+  !!v && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Date) && !isObjectId(v) && !Buffer.isBuffer(v);
 
 /** Valor legível e pequeno o bastante para guardar no log. */
 export function summarize(v: unknown): unknown {
   if (v === undefined || v === null) return null;
-  if (v instanceof Types.ObjectId) return v.toHexString();
+  if (isObjectId(v)) return String(v);
   if (v instanceof Date) return v.toISOString();
   if (typeof v === 'string') return v.length > MAX_VALUE_CHARS ? v.slice(0, MAX_VALUE_CHARS) + '…' : v;
   if (typeof v === 'number' || typeof v === 'boolean') return v;
+  // Lista de valores simples (ex.: plataformas): guarda como lista para a tela juntar.
+  if (Array.isArray(v) && v.every((x) => x === null || ['string', 'number', 'boolean'].includes(typeof x) || isObjectId(x) || x instanceof Date)) {
+    return v.slice(0, 30).map((x) => summarize(x));
+  }
   let json: string;
   try {
-    json = JSON.stringify(v, (_k, val) => (val && val._bsontype === 'ObjectId' ? String(val) : val));
+    json = JSON.stringify(v, (_k, val) => (isObjectId(val) ? String(val) : val));
   } catch {
     json = String(v);
   }
@@ -54,28 +68,103 @@ export function summarize(v: unknown): unknown {
 
 function comparable(v: unknown): string {
   if (v === undefined || v === null || v === '') return '';
-  if (v instanceof Types.ObjectId) return v.toHexString();
+  if (isObjectId(v)) return String(v);
   if (v instanceof Date) return v.toISOString();
   try {
-    return JSON.stringify(v, (_k, val) => (val && val._bsontype === 'ObjectId' ? String(val) : val));
+    return JSON.stringify(v, (_k, val) => (isObjectId(val) ? String(val) : val));
   } catch {
     return String(v);
   }
 }
 
-/** Campos de primeiro nível que mudaram entre duas versões do documento. */
+/** Achata objetos aninhados em caminhos 'a.b.c' (listas ficam como valor). */
+function flatten(obj: Record<string, any>, prefix = '', out: Record<string, any> = {}) {
+  for (const [k, v] of Object.entries(obj)) {
+    if (IGNORED_FIELDS.has(k) || k.startsWith('$')) continue;
+    if (isPlainObject(v) && Object.keys(v).length) flatten(v, `${prefix}${k}.`, out);
+    else out[`${prefix}${k}`] = v;
+  }
+  return out;
+}
+
+/** Item de lista resumido em pares campo → valor (para itens adicionados/removidos). */
+function summarizeItem(item: any): unknown {
+  if (!isPlainObject(item)) return summarize(item);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(flatten(item))) {
+    if (v === null || v === undefined || v === '') continue;
+    out[k] = summarize(v);
+  }
+  return out;
+}
+
+const HINT_FIELDS = ['dueDate', 'date', 'startDate', 'name', 'title', 'description', 'licensePlate'];
+function hintOf(item: any): string | undefined {
+  if (!isPlainObject(item)) return undefined;
+  for (const f of HINT_FIELDS) {
+    const v = summarize(item[f]);
+    if (typeof v === 'string' && v) return v.slice(0, 80);
+  }
+  return undefined;
+}
+
+function diffObjects(field: string, b: Record<string, any>, a: Record<string, any>, extra: Partial<AuditChange>, changes: AuditChange[]) {
+  const fb = flatten(b);
+  const fa = flatten(a);
+  for (const k of new Set([...Object.keys(fb), ...Object.keys(fa)])) {
+    if (changes.length >= MAX_FIELDS) return;
+    if (comparable(fb[k]) === comparable(fa[k])) continue;
+    changes.push({ field, sub: k, from: summarize(fb[k]), to: summarize(fa[k]), ...extra });
+  }
+}
+
+/** Compara listas item a item (por _id quando houver, senão pela posição). */
+function diffArrays(field: string, b: any[], a: any[], changes: AuditChange[]) {
+  const all = [...b, ...a];
+  if (!all.length) return;
+  if (!all.every((x) => isPlainObject(x))) {
+    changes.push({ field, from: summarize(b), to: summarize(a) });
+    return;
+  }
+  const keyed = all.every((x) => x._id);
+  const before = new Map<string, { item: any; pos: number }>();
+  b.forEach((item, i) => before.set(keyed ? String(item._id) : String(i), { item, pos: i }));
+  const seen = new Set<string>();
+  a.forEach((item, i) => {
+    if (changes.length >= MAX_FIELDS) return;
+    const key = keyed ? String(item._id) : String(i);
+    seen.add(key);
+    const prev = before.get(key);
+    if (!prev) changes.push({ field, index: i + 1, hint: hintOf(item), op: 'added', from: null, to: summarizeItem(item) });
+    else diffObjects(field, prev.item, item, { index: i + 1, hint: hintOf(item) }, changes);
+  });
+  for (const [key, { item, pos }] of before) {
+    if (changes.length >= MAX_FIELDS) return;
+    if (!seen.has(key)) changes.push({ field, index: pos + 1, hint: hintOf(item), op: 'removed', from: summarizeItem(item), to: null });
+  }
+}
+
+/** O que mudou entre duas versões do documento, descendo em objetos e listas. */
 export function diffDocs(before: Record<string, any> | null | undefined, after: Record<string, any> | null | undefined): AuditChange[] {
   const b = before ?? {};
   const a = after ?? {};
   const keys = new Set([...Object.keys(b), ...Object.keys(a)]);
   const changes: AuditChange[] = [];
   for (const k of keys) {
+    if (changes.length >= MAX_FIELDS) break;
     if (IGNORED_FIELDS.has(k) || k.startsWith('$')) continue;
     if (comparable(b[k]) === comparable(a[k])) continue;
-    changes.push({ field: k, from: summarize(b[k]), to: summarize(a[k]) });
-    if (changes.length >= MAX_FIELDS) break;
+    const bv = b[k];
+    const av = a[k];
+    if ((Array.isArray(bv) || bv == null) && (Array.isArray(av) || av == null) && (Array.isArray(bv) || Array.isArray(av))) {
+      diffArrays(k, bv ?? [], av ?? [], changes);
+    } else if (isPlainObject(bv) && isPlainObject(av)) {
+      diffObjects(k, bv, av, {}, changes);
+    } else {
+      changes.push({ field: k, from: summarize(bv), to: summarize(av) });
+    }
   }
-  return changes;
+  return changes.slice(0, MAX_FIELDS);
 }
 
 export function labelOf(doc: Record<string, any> | null | undefined): string | undefined {
@@ -141,9 +230,12 @@ async function write(model: any, entries: Entry[]) {
 /** Snapshot reduzido do registro excluído, para consulta futura. */
 function snapshotOf(doc: any) {
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(plain(doc) ?? {})) {
-    if (IGNORED_FIELDS.has(k) && k !== '_id') continue;
-    out[k] = summarize(v);
+  const src = plain(doc) ?? {};
+  if (src._id) out._id = summarize(src._id);
+  for (const [k, v] of Object.entries(flatten(src))) {
+    // Listas de registros (ex.: pagamentos) viram só a contagem; o detalhe fica nos logs de edição.
+    if (Array.isArray(v) && v.some((x) => isPlainObject(x))) out[k] = { count: v.length };
+    else out[k] = summarize(v);
   }
   return out;
 }

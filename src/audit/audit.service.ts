@@ -61,7 +61,15 @@ export class AuditService {
     };
     const fmtDate = (d: Date) =>
       new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'medium' }).format(new Date(d));
-    const fmtVal = (v: unknown) => (v === null || v === undefined || v === '' ? '—' : String(v));
+    const fmtVal = (v: unknown): string => {
+      if (v === null || v === undefined || v === '') return '—';
+      if (Array.isArray(v)) return v.map(fmtVal).join(', ');
+      if (typeof v === 'object') return Object.entries(v as Record<string, unknown>).map(([k, x]) => `${k}=${fmtVal(x)}`).join(', ');
+      return String(v);
+    };
+    // 'payments[2].status', 'payments[3] (adicionado)', 'address.city'
+    const fieldPath = (c: { field: string; sub?: string; index?: number; op?: string }) =>
+      `${c.field}${c.index ? `[${c.index}]` : ''}${c.sub ? `.${c.sub}` : ''}${c.op === 'added' ? ' (adicionado)' : c.op === 'removed' ? ' (removido)' : ''}`;
     const header = ['Data', 'Usuário', 'E-mail', 'Ação', 'Módulo', 'Registro', 'ID do registro', 'Alterações', 'IP'];
     const lines = rows.map((r) =>
       [
@@ -72,7 +80,7 @@ export class AuditService {
         ENTITY_LABELS[r.entity] ?? r.entity,
         r.label,
         r.entityId,
-        (r.changes ?? []).map((c) => `${c.field}: ${fmtVal(c.from)} → ${fmtVal(c.to)}`).join(' | '),
+        (r.changes ?? []).map((c: any) => `${fieldPath(c)}: ${fmtVal(c.from)} → ${fmtVal(c.to)}`).join(' | '),
         r.ip,
       ]
         .map(cell)
