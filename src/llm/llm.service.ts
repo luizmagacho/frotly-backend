@@ -105,6 +105,16 @@ export class LlmService {
     return content.trim();
   }
 
+  /** Pede um JSON ao modelo e devolve o objeto (ou lança erro se o LLM falhar/não estiver configurado). */
+  async completeJson<T = Record<string, unknown>>(systemPrompt: string, userText: string, maxTokens = 1200): Promise<T> {
+    const raw = await this.chat(systemPrompt, userText, maxTokens);
+    return JSON.parse(extractJson(raw)) as T;
+  }
+
+  isConfigured(): boolean {
+    return Boolean(this.getSettings().apiKey);
+  }
+
   private async chat(systemPrompt: string, userText: string, maxTokens = 2048): Promise<string> {
     return this.chatCompletion(
       [

@@ -22,6 +22,7 @@ import { ReportsModule } from './reports/reports.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { LlmModule } from './llm/llm.module';
+import { FipeModule } from './fipe/fipe.module';
 import { InspectionsModule } from './inspections/inspections.module';
 import { CustomersModule } from './customers/customers.module';
 import { ReservationsModule } from './reservations/reservations.module';
@@ -86,6 +87,7 @@ import { FinesModule } from './fines/fines.module';
     DashboardModule,
     TenantsModule,
     LlmModule,
+    FipeModule,
     InspectionsModule,
     CustomersModule,
     ReservationsModule,

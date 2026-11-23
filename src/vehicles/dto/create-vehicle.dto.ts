@@ -114,4 +114,19 @@ export class CreateVehicleDto {
   @IsOptional()
   @IsString({ message: 'As observações devem ser um texto.' })
   notes?: string;
+
+  @ApiPropertyOptional({ description: 'Código FIPE da versão', example: '014115-1' })
+  @IsOptional()
+  @IsString()
+  fipeCode?: string;
+
+  @ApiPropertyOptional({ description: 'Ano-modelo/combustível na FIPE', example: '2024-5' })
+  @IsOptional()
+  @IsString()
+  fipeYearCode?: string;
+
+  @ApiPropertyOptional({ description: 'Nome da versão na FIPE' })
+  @IsOptional()
+  @IsString()
+  fipeModelName?: string;
 }

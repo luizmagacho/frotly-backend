@@ -6,6 +6,7 @@ import { FinancialEntriesService } from '../financial-entries/financial-entries.
 import { FinancialEntry, FinancialEntryCategory, FinancialEntryDocument, FinancialEntryType } from '../financial-entries/schemas/financial-entry.schema';
 import { Vehicle, VehicleDocument } from '../vehicles/schemas/vehicle.schema';
 import { Mileage, MileageDocument } from '../mileage/schemas/mileage.schema';
+import { Rental, RentalDocument, RentalStatus } from '../rentals/schemas/rental.schema';
 import { DriversService } from '../drivers/drivers.service';
 import { VehiclesService } from '../vehicles/vehicles.service';
 import { RentalsService } from '../rentals/rentals.service';
@@ -18,6 +19,7 @@ export class ReportsService {
     @InjectModel(Vehicle.name) private vehicleModel: Model<VehicleDocument>,
     @InjectModel(Mileage.name) private mileageModel: Model<MileageDocument>,
     @InjectModel(FinancialEntry.name) private financialEntryModel: Model<FinancialEntryDocument>,
+    @InjectModel(Rental.name) private rentalModel: Model<RentalDocument>,
     private driversService: DriversService,
     private vehiclesService: VehiclesService,
     private rentalsService: RentalsService,
@@ -130,38 +132,70 @@ export class ReportsService {
   }
 
   /**
-   * Rodagem e custo por km (plano Pro): quanto cada veículo rodou no período, a média por
-   * dia e quanto custou/rendeu por km rodado, a partir das leituras de quilometragem e dos
-   * lançamentos financeiros do veículo.
+   * Leituras de hodômetro por veículo, juntando as duas origens: a tela de Quilometragem /
+   * abastecimentos (coleção mileages) e o reporte semanal do motorista no aluguel
+   * (rentals.mileageLogs). Ordenadas por data.
+   */
+  async collectReadings(until: Date): Promise<Map<string, { date: Date; mileage: number }[]>> {
+    const [docs, logs] = await Promise.all([
+      this.mileageModel.find({ date: { $lte: until } }).select('vehicleId date mileage').lean(),
+      this.rentalModel.aggregate([
+        { $unwind: '$mileageLogs' },
+        { $match: { 'mileageLogs.date': { $lte: until } } },
+        { $project: { vehicleId: 1, date: '$mileageLogs.date', mileage: '$mileageLogs.newMileage' } },
+      ]),
+    ]);
+    const by = new Map<string, { date: Date; mileage: number }[]>();
+    for (const r of [...docs, ...logs] as any[]) {
+      const key = String(r.vehicleId);
+      if (!by.has(key)) by.set(key, []);
+      by.get(key)!.push({ date: new Date(r.date), mileage: Number(r.mileage) || 0 });
+    }
+    for (const list of by.values()) list.sort((a, b) => a.date.getTime() - b.date.getTime());
+    return by;
+  }
+
+  /** Km rodados entre start e end a partir das leituras (hodômetro só cresce). */
+  static kmBetween(readings: { date: Date; mileage: number }[] = [], start: Date, end: Date) {
+    const before = readings.filter((r) => r.date <= start).map((r) => r.mileage);
+    const inside = readings.filter((r) => r.date > start && r.date <= end).map((r) => r.mileage);
+    if (!inside.length) return { km: 0, readings: 0, last: before.length ? Math.max(...before) : null };
+    const base = before.length ? Math.max(...before) : Math.min(...inside);
+    const last = Math.max(...inside);
+    return { km: Math.max(0, last - base), readings: inside.length, last };
+  }
+
+  /**
+   * Rodagem e custo por km (plano Pro): quanto cada veículo rodou no período, média por
+   * semana comparada ao limite semanal do contrato, km excedente e quanto custou/rendeu
+   * cada km. Combustível fica fora do custo — nas locadoras para app é do motorista.
    */
   async getMileagePerVehicle(days = 90): Promise<any> {
     const DAY = 24 * 60 * 60 * 1000;
     const end = new Date();
     const start = new Date(end.getTime() - days * DAY);
+    const weeks = days / 7;
 
-    const [vehicles, readings, money] = await Promise.all([
+    const [vehicles, readingsBy, money, rentals] = await Promise.all([
       this.vehicleModel.find().select('_id licensePlate brand model mileage').lean(),
-      this.mileageModel.aggregate([
-        { $match: { date: { $lte: end } } },
+      this.collectReadings(end),
+      this.financialEntryModel.aggregate([
         {
-          $group: {
-            _id: '$vehicleId',
-            // Hodômetro só cresce: a maior leitura até o início é a última antes do período.
-            before: { $max: { $cond: [{ $lte: ['$date', start] }, '$mileage', null] } },
-            firstIn: { $min: { $cond: [{ $gt: ['$date', start] }, '$mileage', null] } },
-            lastIn: { $max: { $cond: [{ $gt: ['$date', start] }, '$mileage', null] } },
-            readingsIn: { $sum: { $cond: [{ $gt: ['$date', start] }, 1, 0] } },
-            lastReadingAt: { $max: '$date' },
+          $match: {
+            date: { $gt: start, $lte: end },
+            vehicleId: { $ne: null },
+            category: { $ne: FinancialEntryCategory.COMBUSTIVEL },
           },
         },
-      ]),
-      this.financialEntryModel.aggregate([
-        { $match: { date: { $gt: start, $lte: end }, vehicleId: { $ne: null } } },
         { $group: { _id: { vehicleId: '$vehicleId', type: '$type' }, total: { $sum: '$amount' } } },
       ]),
+      this.rentalModel
+        .find({ status: { $in: [RentalStatus.ACTIVE, RentalStatus.OVERDUE] } })
+        .select('vehicleId driverId startDate weeklyKmLimit excessKmFee mileageLogs')
+        .populate('driverId', 'name')
+        .lean(),
     ]);
 
-    const readingBy = new Map(readings.map((r: any) => [String(r._id), r]));
     const moneyBy = new Map<string, { income: number; expenses: number }>();
     for (const m of money as any[]) {
       const key = String(m._id.vehicleId);
@@ -170,24 +204,48 @@ export class ReportsService {
       else cur.expenses += m.total;
       moneyBy.set(key, cur);
     }
+    const rentalBy = new Map((rentals as any[]).map((r) => [String(r.vehicleId), r]));
 
     const round2 = (n: number) => Math.round(n * 100) / 100;
     const perKm = (value: number, km: number) => (km > 0 ? round2(value / km) : null);
 
     const rows = vehicles.map((v: any) => {
-      const r: any = readingBy.get(String(v._id));
-      const base = r?.before ?? r?.firstIn;
-      const km = r?.lastIn != null && base != null ? Math.max(0, r.lastIn - base) : 0;
+      const readings = readingsBy.get(String(v._id)) ?? [];
+      const { km, readings: n } = ReportsService.kmBetween(readings, start, end);
+      const lastReading = readings[readings.length - 1];
       const { income, expenses } = moneyBy.get(String(v._id)) ?? { income: 0, expenses: 0 };
+      const rental: any = rentalBy.get(String(v._id));
+      const limit: number | null = rental?.weeklyKmLimit || null;
+      const kmPerWeek = round2(km / weeks);
+
+      // Km acima do limite, semana a semana, pelos reportes do motorista no período.
+      let excessKm = 0;
+      if (limit && rental?.mileageLogs?.length) {
+        let prev = new Date(rental.startDate);
+        for (const log of rental.mileageLogs) {
+          const d = new Date(log.date);
+          const intervalDays = Math.max(1, (d.getTime() - prev.getTime()) / DAY);
+          if (d > start && d <= end) excessKm += Math.max(0, log.kmDriven - (limit * intervalDays) / 7);
+          prev = d;
+        }
+      }
+      excessKm = Math.round(excessKm);
+
       return {
         vehicleId: v._id,
         licensePlate: v.licensePlate,
         name: `${v.brand ?? ''} ${v.model ?? ''}`.trim(),
-        currentMileage: Math.max(v.mileage || 0, r?.lastIn ?? 0, r?.before ?? 0),
+        driverName: rental?.driverId?.name ?? null,
+        currentMileage: Math.max(v.mileage || 0, ...readings.map((r) => r.mileage)),
         kmInPeriod: km,
         kmPerDay: round2(km / days),
-        readingsInPeriod: r?.readingsIn ?? 0,
-        lastReadingAt: r?.lastReadingAt ?? null,
+        kmPerWeek,
+        weeklyKmLimit: limit,
+        overLimit: limit ? kmPerWeek > limit : false,
+        excessKm,
+        excessKmValue: rental?.excessKmFee ? round2(excessKm * rental.excessKmFee) : null,
+        readingsInPeriod: n,
+        lastReadingAt: lastReading?.date ?? null,
         income: round2(income),
         expenses: round2(expenses),
         costPerKm: perKm(expenses, km),
@@ -197,8 +255,6 @@ export class ReportsService {
     }).sort((a, b) => b.kmInPeriod - a.kmInPeriod);
 
     const totalKm = rows.reduce((s, r) => s + r.kmInPeriod, 0);
-    const totalIncome = rows.reduce((s, r) => s + r.income, 0);
-    const totalExpenses = rows.reduce((s, r) => s + r.expenses, 0);
     // Custo/receita por km só com veículos que têm km medido — senão as despesas de quem
     // não tem leitura inflariam o custo por km da frota.
     const measured = rows.filter((r) => r.kmInPeriod > 0);
@@ -212,10 +268,12 @@ export class ReportsService {
       totals: {
         kmInPeriod: totalKm,
         kmPerDay: round2(totalKm / days),
-        income: round2(totalIncome),
-        expenses: round2(totalExpenses),
+        kmPerWeekPerVehicle: measured.length ? round2(totalKm / weeks / measured.length) : 0,
         costPerKm: perKm(measuredExpenses, totalKm),
         revenuePerKm: perKm(measuredIncome, totalKm),
+        vehiclesOverLimit: rows.filter((r) => r.overLimit).length,
+        excessKm: rows.reduce((s, r) => s + r.excessKm, 0),
+        excessKmValue: round2(rows.reduce((s, r) => s + (r.excessKmValue ?? 0), 0)),
         vehiclesWithoutReadings: rows.filter((r) => r.readingsInPeriod === 0).length,
       },
       vehicles: rows,

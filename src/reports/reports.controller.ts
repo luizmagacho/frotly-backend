@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, ParseIntPipe, DefaultValuePipe, Param, Req } from '@nestjs/common';
+import { SalePlanService } from './sale-plan.service';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -11,7 +12,10 @@ import { PlanType } from '../tenants/schemas/tenant.schema';
 @UseGuards(JwtAuthGuard, PlanGuard)
 @Controller('reports')
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(
+    private readonly reportsService: ReportsService,
+    private readonly salePlanService: SalePlanService,
+  ) {}
 
   @Get('dashboard')
   @ApiOperation({ summary: 'KPIs do dashboard' })
@@ -38,5 +42,12 @@ export class ReportsController {
   @ApiOperation({ summary: 'Rodagem e custo por km por veículo (plano Pro)' })
   getMileagePerVehicle(@Query('days', new DefaultValuePipe(90), ParseIntPipe) days: number) {
     return this.reportsService.getMileagePerVehicle(Math.min(365, Math.max(7, days)));
+  }
+
+  @Get('sale-plan/:vehicleId')
+  @RequiresPlan(PlanType.PRO)
+  @ApiOperation({ summary: 'Plano de venda do veículo: melhor momento pela FIPE e pela quilometragem (plano Pro)' })
+  getSalePlan(@Param('vehicleId') vehicleId: string, @Req() req: any, @Query('refresh') refresh?: string) {
+    return this.salePlanService.getPlan(vehicleId, String(req.user?.tenantId), refresh === '1');
   }
 }

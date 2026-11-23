@@ -47,6 +47,18 @@ export class CreateRentalDto {
   @Min(0)
   securityDeposit?: number;
 
+  @ApiPropertyOptional({ description: 'Limite de rodagem por semana (km)' })
+  @IsOptional()
+  @IsNumber({}, { message: 'O limite semanal de km deve ser um número.' })
+  @Min(0)
+  weeklyKmLimit?: number;
+
+  @ApiPropertyOptional({ description: 'Valor por km acima do limite semanal (R$/km)' })
+  @IsOptional()
+  @IsNumber({}, { message: 'O valor por km excedente deve ser um número.' })
+  @Min(0)
+  excessKmFee?: number;
+
   @ApiPropertyOptional({ description: 'Observações' })
   @IsOptional()
   @IsString()

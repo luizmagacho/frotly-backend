@@ -100,6 +100,14 @@ export class Rental {
   @Prop({ type: Number, default: 0 })
   securityDeposit: number;
 
+  /** Limite de rodagem por semana do contrato (km). Vazio = sem limite. */
+  @Prop({ type: Number, min: 0 })
+  weeklyKmLimit?: number;
+
+  /** Valor cobrado por km acima do limite semanal (R$/km). */
+  @Prop({ type: Number, min: 0 })
+  excessKmFee?: number;
+
   @Prop({ trim: true })
   contractPath: string;
 

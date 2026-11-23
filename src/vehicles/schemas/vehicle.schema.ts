@@ -117,6 +117,18 @@ export class Vehicle {
   @Prop()
   currentValue: number;
 
+  /** Código FIPE da versão (ex.: 014115-1) — usado no plano de venda. */
+  @Prop({ trim: true })
+  fipeCode?: string;
+
+  /** Ano-modelo e combustível na FIPE (ex.: 2024-5). */
+  @Prop({ trim: true })
+  fipeYearCode?: string;
+
+  /** Nome da versão na FIPE, para exibição. */
+  @Prop({ trim: true })
+  fipeModelName?: string;
+
   @Prop({ trim: true })
   notes: string;
 }
