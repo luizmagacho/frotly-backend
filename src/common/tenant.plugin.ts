@@ -46,14 +46,24 @@ export function tenantPlugin(schema: Schema) {
     if (typeof next === 'function') next();
   });
 
-  schema.pre('find', injectTenantId);
-  schema.pre('findOne', injectTenantId);
-  schema.pre('findOneAndUpdate', injectTenantId);
-  schema.pre('countDocuments', injectTenantId);
-  schema.pre('updateMany', injectTenantId);
-  schema.pre('updateOne', injectTenantId);
-  schema.pre('deleteMany', injectTenantId);
-  schema.pre('deleteOne', injectTenantId);
+  // Toda operação de consulta/alteração que recebe filtro. findByIdAndDelete/Remove viram
+  // findOneAndDelete; findByIdAndUpdate vira findOneAndUpdate. Faltar uma delas aqui deixa
+  // um cliente alterar ou excluir dados de outro sabendo apenas o _id.
+  const QUERY_OPS = [
+    'find',
+    'findOne',
+    'findOneAndUpdate',
+    'findOneAndDelete',
+    'findOneAndReplace',
+    'countDocuments',
+    'distinct',
+    'updateMany',
+    'updateOne',
+    'replaceOne',
+    'deleteMany',
+    'deleteOne',
+  ] as const;
+  for (const op of QUERY_OPS) schema.pre(op as any, injectTenantId);
   schema.pre('aggregate', function (this: any) {
     const tenantId = getTenantId();
     if (tenantId) {

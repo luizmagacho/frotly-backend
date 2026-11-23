@@ -36,6 +36,23 @@ describe('tenantPlugin', () => {
     );
   });
 
+  it('also scopes findOneAndDelete/findOneAndReplace/replaceOne/distinct (findByIdAndDelete went unfiltered)', () => {
+    const schema = new Schema({ tenantId: Schema.Types.ObjectId, name: String });
+    const preSpy = jest.spyOn(schema, 'pre');
+
+    tenantPlugin(schema);
+
+    const registeredHooks = preSpy.mock.calls.map((call) => call[0]);
+    expect(registeredHooks).toEqual(
+      expect.arrayContaining(['findOneAndDelete', 'findOneAndReplace', 'replaceOne', 'distinct']),
+    );
+
+    const deleteHook = (preSpy.mock.calls as any[]).find((c) => c[0] === 'findOneAndDelete')?.[1];
+    const whereMock = jest.fn();
+    tenantContext.run({ tenantId: '6a8d938cad9db03aece7189c' }, () => deleteHook.call({ where: whereMock }));
+    expect(String(whereMock.mock.calls[0][0].tenantId)).toBe('6a8d938cad9db03aece7189c');
+  });
+
   describe('behavior of the registered hooks (tenant-scoped schema)', () => {
     const getHook = (schema: Schema, name: string) => {
       const preSpy = schema.pre as jest.Mock;

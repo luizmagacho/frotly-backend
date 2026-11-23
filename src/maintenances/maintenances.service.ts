@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Maintenance, MaintenanceDocument, MaintenanceStatus, MaintenanceType } from './schemas/maintenance.schema';
@@ -132,7 +132,7 @@ export class MaintenancesService {
     const maintenance = await this.maintenanceModel
       .findById(id)
       .populate('vehicleId', 'licensePlate brand model color year');
-    if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+    if (!maintenance) throw new NotFoundException(`Manutenção não encontrada.`);
     return maintenance;
   }
 
@@ -150,7 +150,7 @@ export class MaintenancesService {
       { new: true },
     );
 
-    if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+    if (!maintenance) throw new NotFoundException(`Manutenção não encontrada.`);
 
     await this.financialEntriesService.upsertBySourceId(id, {
       vehicleId: maintenance.vehicleId,
@@ -185,7 +185,7 @@ export class MaintenancesService {
     if (dto.vehicleId) update.vehicleId = new Types.ObjectId(dto.vehicleId);
 
     const maintenance = await this.maintenanceModel.findByIdAndUpdate(id, { $set: update }, { new: true });
-    if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+    if (!maintenance) throw new NotFoundException(`Manutenção não encontrada.`);
 
     if (dto.cost !== undefined) {
       await this.financialEntriesService.upsertBySourceId(id, {
@@ -204,7 +204,7 @@ export class MaintenancesService {
 
   async remove(id: string): Promise<Maintenance> {
     const maintenance = await this.maintenanceModel.findByIdAndDelete(id);
-    if (!maintenance) throw new Error(`Manutenção ${id} não encontrada.`);
+    if (!maintenance) throw new NotFoundException(`Manutenção não encontrada.`);
     await this.financialEntriesService.removeBySourceId(id);
     return maintenance;
   }
