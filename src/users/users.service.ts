@@ -78,8 +78,8 @@ export class UsersService {
     return user;
   }
 
-  private async ensureLimit(actor: Actor) {
-    if ((await this.countActive(actor.tenantId)) >= this.maxUsers) {
+  private async ensureLimit(tenantId: string) {
+    if ((await this.countActive(tenantId)) >= this.maxUsers) {
       throw new ForbiddenException(`Sua locadora já tem ${this.maxUsers} usuários ativos, o limite do sistema. Desative um usuário para liberar uma vaga.`);
     }
   }
@@ -101,13 +101,13 @@ export class UsersService {
     if (String(user._id) === actor.userId) throw new BadRequestException(`Você não pode ${what} o próprio usuário.`);
   }
 
-  private async sendInvite(actor: Actor, user: UserDocument) {
+  private async sendInvite(tenantId: string, user: UserDocument, inviterId?: string) {
     const token = await this.authService.issuePasswordToken(String(user._id), INVITE_HOURS);
     const frontendUrl = this.config.get('FRONTEND_URL', 'http://localhost:3000');
     const link = `${frontendUrl}/definir-senha?token=${token}`;
     const [tenant, inviter] = await Promise.all([
-      this.tenantModel.findById(actor.tenantId).select('name').lean(),
-      this.userModel.findById(actor.userId).select('name').lean(),
+      this.tenantModel.findById(tenantId).select('name').lean(),
+      inviterId ? this.userModel.findById(inviterId).select('name').lean() : Promise.resolve(null),
     ]);
     const emailSent = await this.emailService.sendWelcomeInvite({
       name: user.name,
@@ -121,9 +121,13 @@ export class UsersService {
     return { emailSent, inviteLink: emailSent ? undefined : link };
   }
 
-  async invite(actor: Actor, dto: InviteUserDto) {
+  /**
+   * Cria o usuário pendente e manda o e-mail de boas-vindas. Usado pelo painel (com quem
+   * convidou) e pelo cadastro de um cliente novo feito pela Frotly (sem convidante).
+   */
+  async createInvited(tenantId: string, dto: InviteUserDto, inviterId?: string) {
     const email = dto.email.trim().toLowerCase();
-    const existing = await this.userModel.findOne({ ...this.tenantFilter(actor.tenantId), email });
+    const existing = await this.userModel.findOne({ ...this.tenantFilter(tenantId), email });
     if (existing) {
       throw new ConflictException(
         existing.isActive === false
@@ -131,10 +135,10 @@ export class UsersService {
           : 'Já existe um usuário com esse e-mail.',
       );
     }
-    await this.ensureLimit(actor);
+    await this.ensureLimit(tenantId);
 
     const user = await this.userModel.create({
-      tenantId: new Types.ObjectId(actor.tenantId),
+      tenantId: new Types.ObjectId(tenantId),
       email,
       name: dto.name.trim(),
       role: dto.role,
@@ -142,11 +146,15 @@ export class UsersService {
       password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
       isActive: true,
       pendingInvite: true,
-      invitedBy: new Types.ObjectId(actor.userId),
+      invitedBy: inviterId ? new Types.ObjectId(inviterId) : undefined,
       invitedAt: new Date(),
     });
-    const sent = await this.sendInvite(actor, user);
+    const sent = await this.sendInvite(tenantId, user, inviterId);
     return { user: this.toView(user.toObject()), ...sent };
+  }
+
+  invite(actor: Actor, dto: InviteUserDto) {
+    return this.createInvited(actor.tenantId, dto, actor.userId);
   }
 
   async resendInvite(actor: Actor, id: string) {
@@ -155,7 +163,7 @@ export class UsersService {
     if (user.isActive === false) throw new BadRequestException('Reative o usuário antes de reenviar o convite.');
     user.invitedAt = new Date();
     await user.save();
-    return this.sendInvite(actor, user);
+    return this.sendInvite(actor.tenantId, user, actor.userId);
   }
 
   async updateRole(actor: Actor, id: string, role: UserRole) {
@@ -184,7 +192,7 @@ export class UsersService {
   async reactivate(actor: Actor, id: string) {
     const user = await this.findInTenant(actor, id);
     if (user.isActive !== false) return this.toView(user.toObject());
-    await this.ensureLimit(actor);
+    await this.ensureLimit(actor.tenantId);
     user.isActive = true;
     user.deactivatedAt = undefined;
     await user.save();
